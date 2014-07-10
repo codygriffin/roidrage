@@ -1,0 +1,25 @@
+#version 150
+in vec4 vPosition;
+in vec2 vTexture;
+
+uniform   vec4  vColor;
+uniform   mat4  mModel;
+uniform   mat4  mOrtho;
+
+uniform   float offsetX;
+uniform   float offsetY;
+
+out   vec4  color;
+out   vec2  tex;
+
+vec2 atlas(vec2 uv, int offsetX, int offsetY, int rows, int cols) {
+  return vec2(0.0, 0.0);
+}
+
+void main() {
+  gl_Position = mOrtho * mModel * vPosition;
+  color = vColor;
+
+  tex.x = (vTexture.x+offsetX)/16.0;
+  tex.y = (vTexture.y+offsetY)/16.0;
+}

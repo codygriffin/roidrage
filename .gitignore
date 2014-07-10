@@ -1,0 +1,23 @@
+# Object files
+*.o
+
+# Dep files
+*.d
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# swap
+.*.swp
+
+tgt/
+bin/

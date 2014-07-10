@@ -1,0 +1,214 @@
+#include <jni.h>
+#include <android/log.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+#include <AssetManager.h>
+#include <Log.h>
+#include <GLES2/gl2.h>
+
+#include <pthread.h>
+    
+#ifdef PROFILE
+#include <prof.h>
+#endif
+
+using namespace pronghorn;
+using namespace roidrage;
+
+static void 
+printGLString(const char *name, GLenum s) {
+    const char *v = (const char *) glGetString(s);
+    Log::info("GL % = %\n", name, v);
+}
+
+static void 
+checkGlError(const char* op) {
+    for (GLint error = glGetError(); error; error
+            = glGetError()) {
+        Log::info("after %() glError (0x%)\n", op, error);
+    }
+}
+
+#include "Stank.h"
+
+extern "C" {
+    JNIEXPORT void JNICALL 
+    Java_com_pronghorn_roidrage_RoidRageLib_init(JNIEnv* env,
+                                                 jobject obj,
+                                                 jint width, 
+                                                 jint height,
+                                                 jfloat density);
+    JNIEXPORT void JNICALL 
+    Java_com_pronghorn_roidrage_RoidRageLib_touch(JNIEnv* env,
+                                                  jobject obj,
+                                                  jint        action, 
+                                                  jint        index, 
+                                                  jint        count, 
+                                                  jintArray   ps, 
+                                                  jintArray   xs, 
+                                                  jintArray   ys, 
+                                                  jintArray   ss);
+    JNIEXPORT void JNICALL 
+    Java_com_pronghorn_roidrage_RoidRageLib_zoom(JNIEnv* env,
+                                                 jobject obj,
+                                                 jint    zoom);
+
+    JNIEXPORT void JNICALL 
+    Java_com_pronghorn_roidrage_RoidRageLib_step(JNIEnv* env, 
+                                                 jobject obj);
+
+    JNIEXPORT void JNICALL 
+    Java_com_pronghorn_roidrage_RoidRageLib_destroy(JNIEnv* env, 
+                                                    jobject obj);
+
+    JNIEXPORT void JNICALL 
+    Java_com_pronghorn_roidrage_RoidRageLib_back(JNIEnv* env, 
+                                                 jobject obj);
+
+    JNIEXPORT void JNICALL 
+    Java_com_pronghorn_roidrage_RoidRageLib_setLocalDir(JNIEnv* env,
+                                                        jobject obj,
+                                                        jstring dir);
+};
+
+static pthread_mutex_t m1;
+
+JNIEXPORT void JNICALL 
+Java_com_pronghorn_roidrage_RoidRageLib_init(JNIEnv* env, 
+                                             jobject obj,  
+                                             jint    width, 
+                                             jint    height,
+                                             jfloat  density)
+{
+    pthread_mutex_lock(&m1);
+    AssetManager::jEnv = env;
+    Log::pushTag("roidrage");
+    try {
+      #ifdef PROFILE
+      setenv("CPUPROFILE_FREQUENCY", "1000", 1);
+      monstartup("roidrage.so");
+      #endif
+      // We divide by 1.33125 only because this was originally developed for that density (nexus 7)
+      setupGame(width, height, density/1.33125f);
+    } catch (std::exception& e) {
+      Log::error("%", e.what());
+    }
+    Log::popTag();
+    pthread_mutex_unlock(&m1);
+}
+
+JNIEXPORT void JNICALL 
+Java_com_pronghorn_roidrage_RoidRageLib_touch(JNIEnv*    jEnv, 
+                                              jobject     obj,  
+                                              jint        action, 
+                                              jint        index, 
+                                              jint        count, 
+                                              jintArray   ps, 
+                                              jintArray   xs, 
+                                              jintArray   ys,
+                                              jintArray   ss)
+{
+    pthread_mutex_lock(&m1);
+    Log::pushTag("roidrage");
+
+    count = std::min(10, count);
+    jint bufp[10];
+    jint bufx[10];
+    jint bufy[10];
+    jint bufs[10];
+    jEnv->GetIntArrayRegion(ps, 0, count, bufp);
+    jEnv->GetIntArrayRegion(xs, 0, count, bufx);
+    jEnv->GetIntArrayRegion(ys, 0, count, bufy);
+    jEnv->GetIntArrayRegion(ys, 0, count, bufs);
+
+    try {
+      touchGame(action, index, count, bufp, bufx, bufy, bufs);
+    } catch (std::exception& e) {
+      Log::error("%", e.what());
+    }
+    Log::popTag();
+    pthread_mutex_unlock(&m1);
+}
+
+JNIEXPORT void JNICALL 
+Java_com_pronghorn_roidrage_RoidRageLib_zoom(JNIEnv* env, 
+                                             jobject obj,  
+                                             jint    zoom)
+{
+    pthread_mutex_lock(&m1);
+    Log::pushTag("roidrage");
+    try {
+      zoomGame(zoom/100.0f);
+    } catch (std::exception& e) {
+      Log::error("%", e.what());
+    }
+    Log::popTag();
+    pthread_mutex_unlock(&m1);
+}
+
+
+JNIEXPORT void JNICALL 
+Java_com_pronghorn_roidrage_RoidRageLib_step(JNIEnv* env, 
+                                             jobject obj) {
+    pthread_mutex_lock(&m1);
+    Log::pushTag("roidrage");
+    try {
+      runGame();
+    } catch (std::exception& e) {
+      Log::error("%", e.what());
+    }
+    Log::popTag();
+    pthread_mutex_unlock(&m1);
+}
+
+JNIEXPORT void JNICALL 
+Java_com_pronghorn_roidrage_RoidRageLib_destroy(JNIEnv* env, 
+                                                jobject obj) {
+    pthread_mutex_lock(&m1);
+    Log::pushTag("roidrage");
+    try {
+      #ifdef PROFILE
+      moncleanup();
+      #endif
+      destroy();
+    } catch (std::exception& e) {
+      Log::error("%", e.what());
+    }
+    Log::popTag();
+    pthread_mutex_unlock(&m1);
+}
+
+JNIEXPORT void JNICALL 
+Java_com_pronghorn_roidrage_RoidRageLib_back(JNIEnv* env, 
+                                             jobject obj) {
+    pthread_mutex_lock(&m1);
+    Log::pushTag("roidrage");
+    try {
+      back();
+    } catch (std::exception& e) {
+      Log::error("%", e.what());
+    }
+    Log::popTag();
+    pthread_mutex_unlock(&m1);
+}
+
+JNIEXPORT void JNICALL 
+Java_com_pronghorn_roidrage_RoidRageLib_setLocalDir(JNIEnv* env, 
+                                                    jobject obj,
+                                                    jstring dir) {
+    pthread_mutex_lock(&m1);
+    Log::pushTag("roidrage");
+    try {
+      const char* temp = env->GetStringUTFChars(dir, NULL);
+      std::string stringDir(temp);
+      Log::info("Local directory: %", stringDir.c_str());
+      RoidRageMachine::localDir = stringDir;
+    } catch (std::exception& e) {
+      Log::error("%", e.what());
+    }
+    Log::popTag();
+    pthread_mutex_unlock(&m1);
+}
