@@ -155,8 +155,8 @@ updateTransform(Renderable* pRenderable, Position* p, Radius* m) {
 
   pRenderable->getRenderPass().modelMatrix = glm::rotate(
                         pRenderable->getRenderPass().modelMatrix, 
-                        p->apos,
-                        0.0f,0.0f,1.0f
+                        glm::radians(p->apos),
+                        glm::vec3(0.0f,0.0f,1.0f)
                       );
 }
 

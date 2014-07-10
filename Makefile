@@ -48,7 +48,7 @@ include mak/application.mak
 include mak/staticlib.mak
 include mak/sharedlib.mak
 
-ROIDRAGE_CXXFLAGS    := -std=gnu++0x -O0 -g -DGLFW_INCLUDE_GLCOREARB -DGL_ERROR_CHECK
+ROIDRAGE_CXXFLAGS    := -std=gnu++0x -O0 -g -DGLFW_INCLUDE_GLCOREARB -DGL_ERROR_CHECK -DGLM_FORCE_RADIANS
 ROIDRAGE_CXXFLAGS    += -Iinc/ -Imain/inc -Iglm/ -Iglm/gtx -Iglm/gtc
 roidrage_OBJCXXFLAGS := -std=gnu++0x -O0 -g -x objective-c++
 roidrage_OBJCXXFLAGS += -Iinc/ -Imain/inc -Iglm/ -Iglm/gtx -Iglm/gtc

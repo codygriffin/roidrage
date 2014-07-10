@@ -107,7 +107,7 @@ struct GestureStream  {
   }
 
   void onTouch(Touch touch) {
-    for (int i = 0; i < i < touch.count; i++) {
+    for (unsigned i = 0; i < touch.count; i++) {
       // Get the current digit
       int finger = touch.pointers[touch.index];
 

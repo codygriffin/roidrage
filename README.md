@@ -2,7 +2,9 @@
 
 This is an ongoing experiment in game development.  Some parts are horribly overdesigned, others are woefully incomplete.  This is a rough port from an Android game...
 
-note: kinda portable, but this will probably only build on OS X Mavericks...
+Requires glfw3
+
+note: kinda portable, but this will only build on OS X Mavericks at the moment...
 
 
 ```bash

@@ -107,11 +107,11 @@ struct Expiration {
     return (float)ageMs/(float)expiresInMs;
   }
 
-  unsigned age(unsigned ms) {
+  void age(unsigned ms) {
     ageMs += ms;
   }
 
-  unsigned reset() {
+  void reset() {
     ageMs = 0;
   }
 

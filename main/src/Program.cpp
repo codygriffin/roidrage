@@ -119,7 +119,7 @@ Program::attribute(const char*         pName,
                    VertexBufferObject& vbo,
                    GLint               size,
                    GLsizei             stride,
-                   GLsizei             offset) {
+                   uintptr_t           offset) {
 
   GLuint attrId = glGetAttribLocation(progId_, pName);
   checkGlError("glGetAttribLocation");
@@ -138,7 +138,7 @@ Program::attribute(const char*         pName,
 void   
 Program::uniform(const char* pName,   
                  float       num) {
-  GLuint uniId = glGetUniformLocation(progId_, pName);
+  GLint uniId = glGetUniformLocation(progId_, pName);
   checkGlError("glGetUniformLocation");
   if (uniId < 0) {
     Log::error("no uniform with name \"%\" found in program", pName);
@@ -153,7 +153,7 @@ Program::uniform(const char* pName,
 void   
 Program::uniform(const char* pName,   
                  int         num) {
-  GLuint uniId = glGetUniformLocation(progId_, pName);
+  GLint uniId = glGetUniformLocation(progId_, pName);
   checkGlError("glGetUniformLocation");
   if (uniId < 0) {
     Log::error("no uniform with name \"%\" found in program", pName);
@@ -168,7 +168,7 @@ Program::uniform(const char* pName,
 void
 Program::uniform(const char*      pName,   
                  const glm::mat4& matrix) {
-  GLuint uniId = glGetUniformLocation(progId_, pName);
+  GLint uniId = glGetUniformLocation(progId_, pName);
   checkGlError("glGetUniformLocation");
   if (uniId < 0) {
     Log::error("no uniform with name \"%\" found in program", pName);
@@ -183,7 +183,7 @@ Program::uniform(const char*      pName,
 void
 Program::uniform(const char*      pName,   
                  const glm::vec4& vec) {
-  GLuint uniId = glGetUniformLocation(progId_, pName);
+  GLint uniId = glGetUniformLocation(progId_, pName);
   checkGlError("glGetUniformLocation");
   if (uniId < 0) {
     Log::error("no uniform with name \"%\" found in program", pName);

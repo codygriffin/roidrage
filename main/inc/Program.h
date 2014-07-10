@@ -60,7 +60,7 @@ public:
                    VertexBufferObject& vbo,
                    GLint               size,
                    GLsizei             stride,
-                   GLsizei             offset);
+                   uintptr_t           offset);
 
 
   // Scalar Uniforms

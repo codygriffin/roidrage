@@ -156,6 +156,8 @@ Relation<Attributes...>::visit(V visitor) {
   for (auto it = relation_.begin(); it != relation_.end(); it++) {
     apply(visitor, *it);
   }
+
+  return visitor;
 }
 
 //------------------------------------------------------------------------------
