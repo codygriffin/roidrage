@@ -1,12 +1,10 @@
-# corvid
+# RoidRage
 
-This is just a dumb LISP-like language I'm using to develop some parser combinators in C++. 
+This is an ongoing experiment in game development.  Some parts are horribly overdesigned, others are woefully incomplete.  This is a rough port from an Android game...
+
+note: kinda portable, but this will probably only build on OS X Mavericks...
 
 
 ```bash
-$ make corvid.run
-
->>> (load "test")
+$ make roidrage.run
 ```
-
-Populate the prelude.cvd file with functions to be defined automagically.
