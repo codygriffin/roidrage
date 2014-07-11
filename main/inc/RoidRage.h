@@ -87,8 +87,12 @@ typedef pronghorn::Population<
 
 struct Tick {};
 struct Render {};
+
 struct AndroidBack {};
-struct KeyDown { int key; };
+
+struct GlfwKey         { int key; int scancode; int action; int mods; };
+struct GlfwMouseButton { int button; int action; int mods; };
+struct GlfwMouseMove   { double x; double y; };
 
 //------------------------------------------------------------------------------
 
@@ -97,7 +101,9 @@ typedef corvid::Machine<
   Render, 
   Touch, 
   AndroidBack,
-  KeyDown
+  GlfwKey,
+  GlfwMouseButton,
+  GlfwMouseMove
 > RoidRage;
 
 struct RoidRageMachine : public RoidRage

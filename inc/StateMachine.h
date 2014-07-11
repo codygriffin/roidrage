@@ -18,7 +18,9 @@ namespace corvid {
 template <typename E>
 struct StateHandler {
   virtual void onEvent(E event) {
+    #if 0
     throw std::runtime_error("Unable to handle event E");
+    #endif
   }
 };
 

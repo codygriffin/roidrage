@@ -45,10 +45,14 @@ static void error_callback(int error, const char* description)
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-      pRoidRage->dispatch(AndroidBack());
+  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    pRoidRage->dispatch(AndroidBack());
 
-  KeyDown k; k.key = key; 
+  GlfwKey k; 
+  k.key      = key; 
+  k.scancode = scancode; 
+  k.action   = action; 
+  k.mods     = mods; 
   pRoidRage->dispatch(k);
 }
 
@@ -73,6 +77,12 @@ static void mouse_callback(GLFWwindow* window, int button, int action, int mods)
   int ix[] = {(int)x};
   int iy[] = {(int)y};
   pRoidRage->dispatch(Touch(iaction, 0, 1, p, ix, iy));
+
+  GlfwMouseButton mouse;
+  mouse.button = button;
+  mouse.action = action;
+  mouse.mods = mods;
+  pRoidRage->dispatch(mouse);
 }
 
 static void pos_callback(GLFWwindow* window, double x, double y)
@@ -85,6 +95,11 @@ static void pos_callback(GLFWwindow* window, double x, double y)
   if (down) {
     pRoidRage->dispatch(Touch(Touch::move, 0, 1, p, ix, iy));
   }
+
+  GlfwMouseMove mouse;
+  mouse.x = x;
+  mouse.y = y;
+  pRoidRage->dispatch(mouse);
 }
 
 int main(void)

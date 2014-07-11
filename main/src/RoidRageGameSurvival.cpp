@@ -301,8 +301,17 @@ RoidRageGameSurvival::onEvent(Touch touch) {
 //------------------------------------------------------------------------------
 
 void 
-RoidRageGameSurvival::onEvent(KeyDown keydown) {
+RoidRageGameSurvival::onEvent(GlfwKey key) {
   pRoidRage->pShip->shoot();
+}
+
+
+void 
+RoidRageGameSurvival::onEvent(GlfwMouseMove mouse) {
+}
+
+void 
+RoidRageGameSurvival::onEvent(GlfwMouseButton mouse) {
 }
 
 void 
