@@ -21,6 +21,22 @@
 
 namespace roidrage { 
 
+struct IComponent {
+  virtual std::string toString() = 0;
+};
+
+template <typename T>
+struct Component : public IComponent {
+  // knows what type it is
+  virtual std::string toString() {
+    return "???";
+  }
+
+  bool operator<(const Component& other) const {
+    return this < &other; 
+  }
+};
+
 //------------------------------------------------------------------------------
 
 struct Glow {
@@ -31,7 +47,7 @@ struct TimeDelta {
   int ms;
 };
 
-struct Position {
+struct Position : public Component<Position> {
   glm::vec2 pos;
   float     apos;
 
@@ -58,7 +74,7 @@ struct Position {
   static constexpr float maxDistance =  8000.0f;
 };
 
-struct Color {
+struct Color  : public Component<Color> {
   Color (float r=0.0f, float g=1.0f, float b=0.0f, float a=0.5f) 
     : vec(r,g,b,a) {
   }
@@ -81,7 +97,7 @@ struct Mass {
   float mag;
 };
 
-struct Radius {
+struct Radius  : public Component<Radius> {
   Radius(float r) 
     : mag(r) {
   }
@@ -161,6 +177,14 @@ struct Thrust {
   glm::vec2          vec;
   Thrust(float x, float y) 
     : vec(x, y) {
+  }
+};
+
+struct Attitude {
+  static constexpr float unit = -9.0e-6f;
+  float          dir;
+  Attitude(float d) 
+    : dir(d) {
   }
 };
 

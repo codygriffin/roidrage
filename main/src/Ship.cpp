@@ -40,6 +40,7 @@ Ship::Ship()
 , Mass                  (360.0f)
 , Radius                (80.0f)
 , Thrust                (0.0f,0.0f)
+, Attitude              (0.0f)
 , Shield                (1.0f)
 , Fuel                  (1.0f)
 , points_               (0)
@@ -67,19 +68,31 @@ Ship::~Ship() {
 //------------------------------------------------------------------------------
 
 void 
-Ship::updateThrust(const glm::vec2& acc) {
-  Thrust::vec    = acc;
-  glm::vec2 dir = glm::normalize(acc);
-  Position::apos = atan2(dir.y, dir.x) * 360.0f/6.28f - 90.0f;
+Ship::updateThrust(float thrust) {
+  Thrust::vec = glm::vec2(cos((Position::apos-90.0f) * 6.28f/360.0f), 
+                          sin((Position::apos-90.0f) * 6.28f/360.0f)) * thrust;
   getRenderPass().pTex[0] = pRoidRage->pSpaceshipTex[0].get();
 }
 
 //------------------------------------------------------------------------------
 
 void 
+Ship::updateAttitude(float dir) {
+  Attitude::dir = dir;
+  Thrust::vec = glm::vec2(cos((Position::apos-90.0f) * 6.28f/360.0f), 
+                          sin((Position::apos-90.0f) * 6.28f/360.0f)) * glm::length(Thrust::vec);
+}
+
+void 
 Ship::stopThrust() {
   Thrust::vec = glm::vec2(0.0f);
   getRenderPass().pTex[0] = pRoidRage->pSpaceshipTex[1].get();
+}
+
+void 
+Ship::stopAttitude() {
+  Attitude::dir = 0.0f;
+  Position::avel = 0.0f;
 }
 
 //------------------------------------------------------------------------------

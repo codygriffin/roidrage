@@ -21,6 +21,7 @@ using namespace roidrage;
 using namespace pronghorn;
 
 constexpr float Thrust::unit;
+constexpr float Attitude::unit;
 constexpr float Position::max;
 constexpr float Mass::unit;
 constexpr float Charge::unit;
@@ -46,8 +47,12 @@ resetAcceleration(Position* pPos) {
 
 //------------------------------------------------------------------------------
 
-void updateThrust(Position* pPos, Thrust* pThrust) {
-  pPos->acc += pThrust->vec * Thrust::unit;
+void updateThrust(Position* pPos, Thrust* pThrust, Attitude* pAttitude) {
+  pPos->acc  += pThrust->vec * Thrust::unit;
+  pPos->aacc += pAttitude->dir * Attitude::unit;
+  pThrust->vec = glm::vec2(cos((pPos->apos-90.0f) * 6.28f/360.0f),
+                           sin((pPos->apos-90.0f) * 6.28f/360.0f)) 
+               * -glm::length(pThrust->vec);
 }
 
 //------------------------------------------------------------------------------
@@ -74,11 +79,18 @@ void updatePosition(TimeDelta* delta, Position* pos) {
     pos->apos = 0.0f;
   }
 
-  if (pos->avel >  360.0f) {
-    pos->avel = 0.0f;
+  if (pos->avel >  3.0f) {
+    pos->avel = 3.0f;
   }
-  if (pos->avel < -360.0f) {
-    pos->avel = 0.0f;
+  if (pos->avel < -3.0f) {
+    pos->avel = -3.0f;
+  }
+
+  if (pos->aacc >  0.004f) {
+    pos->aacc = 0.004f;
+  }
+  if (pos->aacc < -0.004f) {
+    pos->aacc = -0.004f;
   }
 
   // scalar distance - used for expiring pewpews (perhaps time is better?)

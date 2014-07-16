@@ -60,7 +60,7 @@ extern "C" {
 
   void updateTime(TimeMs* pTime, TimeDelta* pDelta);
   void resetAcceleration(Position* pPos);
-  void updateThrust(Position* pPos, Thrust* pThrust);
+  void updateThrust(Position* pPos, Thrust* pThrust, Attitude* pAttitude);
   void updatePosition(TimeDelta* delta, Position* pos);
   void updateRoidar(Roid* pRoid);
   void age(TimeDelta* pDelta, Expiration* pExpiration);

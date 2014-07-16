@@ -332,7 +332,7 @@ RoidRageGame::onDown(int index, int count, int* p, int* x, int* y, int* s) {
     #endif
 
     glm::vec2 thrust = calcThrustVector();
-    pRoidRage->pShip->updateThrust(thrust);
+    //pRoidRage->pShip->updateThrust(thrust);
   } else {
     pRoidRage->pShip->stopThrust();
   }
@@ -345,7 +345,7 @@ RoidRageGame::onMove(int index, int count, int* p, int* x, int* y, int* s) {
   }
 
   if (count == 1 && !isShooting()) {
-    pRoidRage->pShip->updateThrust(calcThrustVector());
+    //pRoidRage->pShip->updateThrust(calcThrustVector());
   }
 }
 

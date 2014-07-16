@@ -147,6 +147,7 @@ RoidRageGameSurvival::onEvent(Tick tick) {
   pRoidRage->population.visit(&enforceBoundaries);
 
   pRoidRage->population.visit(&updateThrust);
+
   pRoidRage->population.visit(&updatePosition);
   pRoidRage->population.visit(&updateTransform); 
 
@@ -164,7 +165,7 @@ RoidRageGameSurvival::onEvent(Tick tick) {
     pGlow_->pFbo_->bind();
     SolidQuad bg(0.0f, 0.0f, 
                  Display::getWidth(), Display::getHeight());
-    bg.getRenderPass().color = glm::vec4(0.0f, 0.0f, 0.0f, 0.15f);
+    bg.getRenderPass().color = glm::vec4(0.0f, 0.0f, 0.0f, 0.10f);
     renderOrtho(&bg);
     pRoidRage->population.visit(&renderGlow); 
     Framebuffer::unbind();
@@ -271,125 +272,61 @@ RoidRageGameSurvival::spawnRoids() {
 }
 
 //------------------------------------------------------------------------------
-
+// TODO definitely a better way for this - perhaps a map of keys and lambdas?
 void 
-RoidRageGameSurvival::onEvent(Touch touch) {
-  const float x = touch.xs[touch.index];
-  const float y = touch.ys[touch.index];
-
-  current_ = glm::vec2(x - Display::getWidth()  * 0.5f, 
-                       y - Display::getHeight() * 0.5f);
-
-  //static GestureStream gestureStream;
-  //gestureStream.onTouch(touch);
-
-  switch (touch.action) {
-  case Touch::down:
-    onDown(touch.index, touch.count, touch.pointers, touch.xs, touch.ys, 0);
+RoidRageGameSurvival::onEvent(GlfwKey key) {
+  switch (key.key) {
+    case GLFW_KEY_SPACE:
+      if (key.action == GLFW_PRESS) {
+        pRoidRage->pShip->shoot();
+      }
     break;
-  case Touch::up:
-    onUp(touch.index, touch.count, touch.pointers, touch.xs, touch.ys, 0);
+    case GLFW_KEY_W:
+      if (key.action == GLFW_PRESS) {
+        pRoidRage->pShip->updateThrust(-(pRoidRage->thrustMag*350.0f + 50.0f) * multiplier_);
+      }
+      if (key.action == GLFW_RELEASE) {
+        pRoidRage->pShip->stopThrust();
+      }
     break;
-  case Touch::move:
-    onMove(touch.index, touch.count, touch.pointers, touch.xs, touch.ys, 0);
+    case GLFW_KEY_A:
+      if (key.action == GLFW_PRESS) {
+        pRoidRage->pShip->updateAttitude(150.0f);
+      }
+      if (key.action == GLFW_RELEASE) {
+        pRoidRage->pShip->stopAttitude();
+      }
+    break;
+    case GLFW_KEY_D:
+      if (key.action == GLFW_PRESS) {
+        pRoidRage->pShip->updateAttitude(-150.0f);
+      }
+      if (key.action == GLFW_RELEASE) {
+        pRoidRage->pShip->stopAttitude();
+      }
     break;
   }
-
-  previous_ = current_;
 }
 
 //------------------------------------------------------------------------------
 
 void 
-RoidRageGameSurvival::onEvent(GlfwKey key) {
-  pRoidRage->pShip->shoot();
-}
-
-
-void 
 RoidRageGameSurvival::onEvent(GlfwMouseMove mouse) {
+  auto norm = glm::vec2(mouse.x - Display::getWidth()  * 0.5f, 
+                        mouse.y - Display::getHeight() * 0.5f);
+  auto apos = atan2(norm.y, norm.x) * 360.0f/6.28f - 90.0f;
+ pRoidRage->pShip->apos = apos;
 }
+
+//------------------------------------------------------------------------------
 
 void 
 RoidRageGameSurvival::onEvent(GlfwMouseButton mouse) {
-}
-
-void 
-RoidRageGameSurvival::onDown(int index, int count, int* p, int* x, int* y, int* s) {
-  //if (isShooting()) {
-  //  pRoidRage->pShip->shoot();
-  //  return;
-  // }
-
-  if (count == 1) {
-    #ifdef THRUST_MULTIPLIER
-    const float tapMs = 250.0f;
-    int64_t now = TimeMs::now(); 
-    if (now - lastTap_ < tapMs && glm::length(previous_ - current_) < 100.0f) {
-      multiplier_ = 3.0f;
-    } else {
-      multiplier_ = 1.0f;
-    }
-    lastTap_ = now;
-    #endif
-
-    glm::vec2 thrust = calcThrustVector();
-    pRoidRage->pShip->updateThrust(thrust);
-  } else {
-    pRoidRage->pShip->stopThrust();
+  if (mouse.button == GLFW_MOUSE_BUTTON_LEFT && mouse.action == GLFW_PRESS) {
+    pRoidRage->pShip->shoot();
   }
-
 }
 
-void 
-RoidRageGameSurvival::onMove(int index, int count, int* p, int* x, int* y, int* s) {
-  //if (isShooting()) {
-  //  return;
-  //}
-
-  //if (count == 1 && !isShooting()) {
-    pRoidRage->pShip->updateThrust(calcThrustVector());
-  //}
-}
-
-void 
-RoidRageGameSurvival::onUp(int index, int count, int* p, int* x, int* y, int* s) {
-  if (count == 1) {
-    pRoidRage->pShip->stopThrust();
-    multiplier_ = 1.0f;
-  }
-
-  //pRoidRage->leftShooting = false;
-  //pRoidRage->rightShooting = false;
-}
-
-/*
-bool 
-RoidRageGameSurvival::isShooting() const {
-  // side buttons should be better encapsulated
-  const float barWidth = (pRoidRage->barWidth * 100.0f + 50.0f) * Display::getScale();
-
-  // TODO transformation stack
-  if (current_.x < -Display::getWidth()*0.5+barWidth) {
-    pRoidRage->leftShooting = true;
-    return true;
-  }
-  
-  if (current_.x >  Display::getWidth()*0.5-barWidth) {
-    pRoidRage->rightShooting = true;
-    return true;
-  }
-
-  return false;
-}
-*/
-
-glm::vec2 
-RoidRageGameSurvival::calcThrustVector() const {
-  float invert = pRoidRage->inverted?1.0f:-1.0f;
-  return glm::normalize(current_) * (pRoidRage->thrustMag*350.0f + 50.0f) * invert * multiplier_;
-}
-  
 //------------------------------------------------------------------------------
 
 void 

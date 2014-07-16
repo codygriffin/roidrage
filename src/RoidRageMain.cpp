@@ -102,57 +102,94 @@ static void pos_callback(GLFWwindow* window, double x, double y)
   pRoidRage->dispatch(mouse);
 }
 
+#include "Entity.h"
+
+void testing1(Position* p) {
+  std::cout << "Position: " << std::hex << p << std::endl;
+}
+
+void testing2(Color* c) {
+  std::cout << "Color: " << std::hex << c << std::endl;
+}
+
+void testing3(Color* c, Position* p) {
+  std::cout << "Color & Position: " << std::hex << c << ", " << p << std::endl;
+}
+
 int main(void)
 {
-    GLFWwindow* window;
-    glfwSetErrorCallback(error_callback);
+  System sys;
+  sys.registerIndex<Color>();
+  sys.registerIndex<Position>();
+  sys.registerIndex<Color, Position>();
 
-    if (!glfwInit())
-        exit(EXIT_FAILURE);
+  auto test1 = sys.entity("test1");
+  auto test2 = sys.entity("test2");
+  auto test3 = sys.entity("test3");
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    window = glfwCreateWindow(640, 480, "RoidRage: ALPHA", NULL, NULL);
+  std::cout << "Adding position" << std::endl;
+  test1.add<Position>();
+  std::cout << "Adding color" << std::endl;
+  test1.add<Color>();
+
+  //test2.add<Color>();
+  //test3.add<Position>();
+
+  sys.visit(&testing1);
+  sys.visit(&testing2);
+  sys.visit(&testing3);
+
+  //exit (0);
+
+  GLFWwindow* window;
+  glfwSetErrorCallback(error_callback);
+
+  if (!glfwInit())
+      exit(EXIT_FAILURE);
+
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  window = glfwCreateWindow(640, 480, "RoidRage: ALPHA", NULL, NULL);
+  int width, height;
+  glfwGetFramebufferSize(window, &width, &height);
+
+  if (!window)
+  {
+      glfwTerminate();
+      exit(EXIT_FAILURE);
+  }
+
+  glfwMakeContextCurrent(window);
+  glfwSetKeyCallback(window, key_callback);
+  glfwSetMouseButtonCallback(window, mouse_callback);
+  glfwSetCursorPosCallback(window, pos_callback);
+
+  ratio = height/480.0f;
+
+  Log::info("********************************************************************************");
+  pRoidRage = new RoidRageMachine(width, height, ratio);
+  pRoidRage->transition<RoidRageMenu>(true);
+  //pRoidRage->transition<RoidRageGame>(true);
+  Log::info("RoidRage Initialized (w=%, h=%, d=%)", width, height, ratio);
+  Log::info("********************************************************************************");
+
+  GLuint vao;
+  glGenVertexArrays(1, &vao);
+  glBindVertexArray(vao);
+  while (!glfwWindowShouldClose(window)) {
+    float ratio;
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
+    ratio = width / (float) height;
+    pRoidRage->dispatch(Tick());
+    glfwSwapBuffers(window);
+    glfwPollEvents();
+  }
 
-    if (!window)
-    {
-        glfwTerminate();
-        exit(EXIT_FAILURE);
-    }
-
-    glfwMakeContextCurrent(window);
-    glfwSetKeyCallback(window, key_callback);
-    glfwSetMouseButtonCallback(window, mouse_callback);
-    glfwSetCursorPosCallback(window, pos_callback);
-
-    ratio = height/480.0f;
-
-    Log::info("********************************************************************************");
-    pRoidRage = new RoidRageMachine(width, height, ratio);
-    pRoidRage->transition<RoidRageMenu>(true);
-    //pRoidRage->transition<RoidRageGame>(true);
-    Log::info("RoidRage Initialized (w=%, h=%, d=%)", width, height, ratio);
-    Log::info("********************************************************************************");
-
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    while (!glfwWindowShouldClose(window)) {
-      float ratio;
-      int width, height;
-      glfwGetFramebufferSize(window, &width, &height);
-      ratio = width / (float) height;
-      pRoidRage->dispatch(Tick());
-      glfwSwapBuffers(window);
-      glfwPollEvents();
-    }
-
-    glfwDestroyWindow(window);
-    glfwTerminate();
-    exit(EXIT_SUCCESS);
+  glfwDestroyWindow(window);
+  glfwTerminate();
+  exit(EXIT_SUCCESS);
 }
 

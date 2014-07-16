@@ -44,6 +44,7 @@ struct Ship : public Quad
             , public Mass
             , public Radius
             , public Thrust
+            , public Attitude
             , public Shield
             , public Fuel
             , public Validate
@@ -55,8 +56,10 @@ public:
   Ship();
   virtual ~Ship();
 
-  void updateThrust(const glm::vec2& acc);
+  void updateThrust(float thrust);
+  void updateAttitude(float dir);
   void stopThrust();
+  void stopAttitude();
 
   void shoot();
   void shoot(float angle);

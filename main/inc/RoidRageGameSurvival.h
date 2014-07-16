@@ -37,15 +37,10 @@ struct RoidRageGameSurvival : public RoidRage::State {
 
 protected:
   void onEvent(Tick);
-  void onEvent(Touch);
   void onEvent(AndroidBack);
   void onEvent(GlfwKey);
   void onEvent(GlfwMouseButton);
   void onEvent(GlfwMouseMove);
-
-  void onDown  (int index, int count, int* p, int* x, int* y, int* s);
-  void onMove  (int index, int count, int* p, int* x, int* y, int* s);
-  void onUp    (int index, int count, int* p, int* x, int* y, int* s);
 
 private:
   bool      isShooting() const;
