@@ -16,34 +16,17 @@
 #include "Program.h"
 #include "Texture.h"
 #include "VertexBufferObject.h"
+#include "Entity.h"
 
 //------------------------------------------------------------------------------
 
 namespace roidrage { 
 
-struct IComponent {
-  virtual std::string toString() = 0;
-};
-
-template <typename T>
-struct Component : public IComponent {
-  // knows what type it is
-  virtual std::string toString() {
-    return "???";
-  }
-
-  bool operator<(const Component& other) const {
-    return this < &other; 
-  }
-};
-
-//------------------------------------------------------------------------------
-
 struct Glow {
   float glow;
 };
 
-struct TimeDelta {
+struct TimeDelta : public Component<TimeDelta> {
   int ms;
 };
 
@@ -199,6 +182,13 @@ struct Fuel {
   float mag;
   Fuel(float m) 
     : mag(m) {
+  }
+};
+
+struct Selectable : Component<Selectable> {
+  bool selected;
+  Selectable(bool s) 
+    : selected(s) {
   }
 };
 

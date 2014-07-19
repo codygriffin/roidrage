@@ -16,6 +16,10 @@
 #define INCLUDED_VECTOR
 #endif
 
+#ifndef INCLUDED_PARAMS
+#include "Params.h"
+#endif
+
 //------------------------------------------------------------------------------
 
 namespace pronghorn { 
@@ -41,7 +45,7 @@ struct RenderPass {
 };
 
 
-struct Renderable  {
+struct Renderable : public Component<Renderable> {
   void render(OrthoCamera* pCam);
 
   inline RenderPass& getRenderPass() {

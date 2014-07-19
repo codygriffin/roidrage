@@ -1,13 +1,42 @@
+//------------------------------------------------------------------------------
+//
+// Copyright (C) 2014 Cody Griffin (cody.m.griffin@gmail.com)
+// 
+
+#ifndef INCLUDED_ENTITY_H
+#define INCLUDED_ENTITY_H
+
+#include "Corvid.h"
 #include <string>
 
 #include <typeinfo>
 #include <typeindex>
 
+#include <iostream>
 #include <vector>
 #include <map>
 #include <set>
 
+//------------------------------------------------------------------------------
+
 struct System;
+struct IComponent {
+  virtual std::string toString() = 0;
+};
+
+template <typename T>
+struct Component : public IComponent {
+  // knows what type it is
+  virtual std::string toString() {
+    return "???";
+  }
+
+  bool operator<(const Component& other) const {
+    return this < &other; 
+  }
+};
+
+//------------------------------------------------------------------------------
 
 struct Entity {
   Entity(System& system, const std::string& name) : name_(name), system_(system) {
@@ -44,6 +73,8 @@ private:
 
   std::map<std::type_index, IComponent*> components_;
 };
+
+//------------------------------------------------------------------------------
 
 template <typename...T>
 struct EntityProj;
@@ -85,12 +116,12 @@ struct IIndex {
   virtual void index(Entity& entity) = 0;
 };
 
+//------------------------------------------------------------------------------
   
 template<typename...Args>
 struct Index : public IIndex {
   void index(Entity& entity) {
     if (entity.hasAll<Args...>()) {
-      std::cout << "Inserting " << entity.name() << " into index " << typeid(index_).name() << std::endl;
       index_.insert(entity.project<Args...>());
     } else {
     }
@@ -98,7 +129,6 @@ struct Index : public IIndex {
 
   void 
   foreach(void (*pVisitor)(Args*...)) {
-    std::cout << "iterating {" <<  sizeof...(Args) << "} over " << index_.size() << " records" << std::endl;
     for (auto c : index_) {
       corvid::apply(pVisitor, c);
     } 
@@ -106,6 +136,8 @@ struct Index : public IIndex {
 
   std::set<std::tuple<Args*...>> index_;
 };
+
+//------------------------------------------------------------------------------
 
 struct System {
   template <typename...Args>
@@ -121,7 +153,7 @@ struct System {
 
   template <typename...Args>
   void 
-  registerIndex(void (*pVisitor)(Args...)) {
+  registerIndex(void (*pVisitor)(Args*...)) {
     registerIndex<Args...>();
   }
 
@@ -151,11 +183,33 @@ struct System {
   
     return e->second;
   }
+
+  Entity& 
+  entity() {
+    auto randchar = []() -> char
+    {
+        const char charset[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+        const size_t max_index = (sizeof(charset) - 1);
+        return charset[ rand() % max_index ];
+    };
+    std::string name(10,0);
+    std::generate_n(name.begin(), name.length(), randchar);
+    auto e = entities_.find(name);
+    if (e == entities_.end()) {
+      Entity& e = *new Entity(*this, name);
+      entities_.emplace(name, e);    
+      return e;
+    }
+  
+    return e->second;
+  }
   
   void
   indexEntity(Entity& e) {
     for (auto kv : indices_) {
-      std::cout << "attempting index w/ " << kv.first.name() << std::endl ;
       kv.second->index(e);
     }
   }
@@ -164,6 +218,8 @@ private:
   std::map<std::string, Entity>      entities_;
   std::map<std::type_index, IIndex*> indices_;
 };
+
+//------------------------------------------------------------------------------
 
 template <typename...T> 
 std::tuple<T*...> 
@@ -219,3 +275,4 @@ Entity::get() {
   throw std::runtime_error("Cannot get non-existent component");
 }
 
+#endif

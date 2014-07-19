@@ -102,45 +102,8 @@ static void pos_callback(GLFWwindow* window, double x, double y)
   pRoidRage->dispatch(mouse);
 }
 
-#include "Entity.h"
-
-void testing1(Position* p) {
-  std::cout << "Position: " << std::hex << p << std::endl;
-}
-
-void testing2(Color* c) {
-  std::cout << "Color: " << std::hex << c << std::endl;
-}
-
-void testing3(Color* c, Position* p) {
-  std::cout << "Color & Position: " << std::hex << c << ", " << p << std::endl;
-}
-
 int main(void)
 {
-  System sys;
-  sys.registerIndex<Color>();
-  sys.registerIndex<Position>();
-  sys.registerIndex<Color, Position>();
-
-  auto test1 = sys.entity("test1");
-  auto test2 = sys.entity("test2");
-  auto test3 = sys.entity("test3");
-
-  std::cout << "Adding position" << std::endl;
-  test1.add<Position>();
-  std::cout << "Adding color" << std::endl;
-  test1.add<Color>();
-
-  //test2.add<Color>();
-  //test3.add<Position>();
-
-  sys.visit(&testing1);
-  sys.visit(&testing2);
-  sys.visit(&testing3);
-
-  //exit (0);
-
   GLFWwindow* window;
   glfwSetErrorCallback(error_callback);
 
