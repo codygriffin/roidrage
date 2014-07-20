@@ -59,9 +59,9 @@ struct Position : public Component<Position> {
 
 struct Color  : public Component<Color> {
   Color (float r=0.0f, float g=1.0f, float b=0.0f, float a=0.5f) 
-    : vec(r,g,b,a) {
+    : color(r,g,b,a) {
   }
-  glm::vec4 vec;
+  glm::vec4 color;
 };
 
 struct Charge {
@@ -186,12 +186,45 @@ struct Fuel {
 };
 
 struct Selectable : Component<Selectable> {
-  bool selected;
+  bool        selected;
+  std::string indicator;
   Selectable(bool s) 
     : selected(s) {
   }
+
+  static glm::vec2 position;
 };
 
+struct GlVbo : Component<GlVbo> {
+  pronghorn::VertexBufferObject vbo;
+  GlVbo(GLsizeiptr sizeBytes, const GLvoid* pData = 0, GLenum usage = pronghorn::VertexBufferObject::STATIC) 
+  : vbo(sizeBytes, pData, usage) {
+  }
+};
+
+struct GlTexture : Component<GlTexture> {
+  pronghorn::Texture texture;
+  GlTexture(GLsizei       width, 
+            GLsizei       height, 
+            GLenum        fmt, 
+            const GLvoid* pData)
+  : texture(width, height, fmt, pData) {
+  }
+};
+
+struct GlProgram : Component<GlProgram> {
+  pronghorn::Program program;
+  GlProgram(pronghorn::VertexShader   vertexShader, 
+            pronghorn::FragmentShader fragShader,
+            const GLenum   primitiveType = pronghorn::Program::defaultPrimitiveType_)
+  : program (vertexShader, fragShader, primitiveType) {
+  }
+     
+};
+
+struct Transform : Component<Transform> {
+  glm::mat4 transform;
+};
 
 //------------------------------------------------------------------------------
 

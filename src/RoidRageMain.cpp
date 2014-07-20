@@ -82,6 +82,8 @@ static void mouse_callback(GLFWwindow* window, int button, int action, int mods)
   mouse.button = button;
   mouse.action = action;
   mouse.mods = mods;
+  mouse.x    = float(x);
+  mouse.y    = float(y);
   pRoidRage->dispatch(mouse);
 }
 

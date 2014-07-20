@@ -77,6 +77,9 @@ $1.clean:
 $1.run: $$($(1)_BIN_DIR)/$1
 	$$($(1)_BIN_DIR)/$1 $$(shell echo $$$$$$($(1)_OPTS))
 
+$1.debug: $$($(1)_BIN_DIR)/$1
+	$$(DB) $$($(1)_BIN_DIR)/$1 $$(shell echo $$$$$$($(1)_OPTS)) 
+
 # Show environment
 $1.env: 
 	# $1 environment: $$($(1)_OPTS) = $$(shell echo $$$$$$($(1)_OPTS))

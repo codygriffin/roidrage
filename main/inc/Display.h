@@ -22,6 +22,7 @@ struct Display  {
 
   static float getScaledWidth () ;
   static float getScaledHeight() ;
+
 protected:
 
 private:

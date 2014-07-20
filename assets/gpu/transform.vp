@@ -1,4 +1,8 @@
+//-----------------------------------------------------------------------------
+
 #version 330 core
+
+//-----------------------------------------------------------------------------
 
 layout(location = 0) in vec4 vPosition;
 layout(location = 1) in vec2 vTexture;
@@ -11,6 +15,8 @@ uniform  float depth;
 out   vec4 color;
 out   vec2 tex;
 
+//-----------------------------------------------------------------------------
+
 void main() {
   // Set our position
   gl_Position   = mOrtho * mModel * vPosition;
@@ -19,3 +25,5 @@ void main() {
   color = vColor;
   tex   = vTexture;
 }
+
+//-----------------------------------------------------------------------------

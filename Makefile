@@ -40,6 +40,7 @@ TGT_DIR := ./tgt
 OS          := $(shell uname -s)
 HOST        := $(OS)-$(shell uname -m)
 TGT_DIR     := ./tgt/$(HOST)
+DB 	:= lldb
 
 include mak/helpers.mak
 include mak/sources.mak

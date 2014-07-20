@@ -16,6 +16,7 @@
 #include <GLFW/glfw3.h>
 #endif
 
+#include <string>
 
 //------------------------------------------------------------------------------
 
@@ -29,9 +30,11 @@ public:
  ~Shader();
 
   GLuint getId() const;
+  const std::string& sourcePath() const;
 
 private:
   GLuint shaderId_;
+  std::string sourcePath_;
 
 public:
   static const GLenum VERTEX    = GL_VERTEX_SHADER;

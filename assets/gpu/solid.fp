@@ -1,4 +1,5 @@
-#version 150
+#version 330 core
+
 //precision mediump float;
 in vec2 tex;
 in vec4 color;

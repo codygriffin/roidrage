@@ -79,18 +79,6 @@ RoidRageMachine::RoidRageMachine(int w, int h, float s)
     scores[i] = 0;
   }
 
-  // Allocate and initialize assets
-  auto pVert            = AssetManager::loadText  ("assets/gpu/transform.vp");
-  auto pFrag            = AssetManager::loadText  ("assets/gpu/texture.fp");
-  auto pSolidFrag       = AssetManager::loadText  ("assets/gpu/solid.fp");
-  auto pShieldFrag      = AssetManager::loadText  ("assets/gpu/shield.fp");
-  auto pBgFrag          = AssetManager::loadText  ("assets/gpu/background.fp");
-  auto pCharVert        = AssetManager::loadText  ("assets/gpu/char.vp");
-  auto pCharFrag        = AssetManager::loadText  ("assets/gpu/char.fp");
-  auto pOverlayVert     = AssetManager::loadText  ("assets/gpu/overlay.vp");
-  auto pOverlayFrag     = AssetManager::loadText  ("assets/gpu/overlay.fp");
-  auto pGlowFrag        = AssetManager::loadText  ("assets/gpu/glow.fp");
-
   // TODO return {width height data} tuple via JNI
   unsigned w_, h_;
   auto pBonus01Data     = AssetManager::loadBitmap("assets/png/nugget01.png",  w_, h_);
@@ -108,16 +96,16 @@ RoidRageMachine::RoidRageMachine(int w, int h, float s)
   auto pBoidData        = AssetManager::loadBitmap("assets/png/boid01.png",    w_, h_);
   auto pFontData        = AssetManager::loadBitmap("assets/png/menlo24.png",   w_, h_);
   
-  pVertShader.reset       (new VertexShader  (pVert.get()));
-  pFragShader.reset       (new FragmentShader(pFrag.get()));
-  pSolidShader.reset      (new FragmentShader(pSolidFrag.get()));
-  pShieldShader.reset     (new FragmentShader(pShieldFrag.get()));
-  pBgFragShader.reset     (new FragmentShader(pBgFrag.get()));
-  pCharVertShader.reset   (new VertexShader  (pCharVert.get()));
-  pCharShader.reset       (new FragmentShader(pCharFrag.get()));
-  pOverlayVertShader.reset(new VertexShader  (pOverlayVert.get()));
-  pOverlayFragShader.reset(new FragmentShader(pOverlayFrag.get()));
-  pGlowFragShader.reset   (new FragmentShader(pGlowFrag.get()));
+  pVertShader.reset       (new VertexShader  ("assets/gpu/transform.vp"));
+  pFragShader.reset       (new FragmentShader("assets/gpu/texture.fp"));
+  pSolidShader.reset      (new FragmentShader("assets/gpu/solid.fp"));
+  pShieldShader.reset     (new FragmentShader("assets/gpu/shield.fp"));
+  pBgFragShader.reset     (new FragmentShader("assets/gpu/background.fp"));
+  pCharVertShader.reset   (new VertexShader  ("assets/gpu/char.vp"));
+  pCharShader.reset       (new FragmentShader("assets/gpu/char.fp"));
+  pOverlayVertShader.reset(new VertexShader  ("assets/gpu/overlay.vp"));
+  pOverlayFragShader.reset(new FragmentShader("assets/gpu/overlay.fp"));
+  pGlowFragShader.reset   (new FragmentShader("assets/gpu/glow.fp"));
 
   Log::info("Assets Loaded");
 

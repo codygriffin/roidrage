@@ -38,12 +38,16 @@ checkGlError_(const char* op) {
     }
 }
 
-Program::Program(const VertexShader&   vertexShader, 
-                 const FragmentShader& fragShader,
-                 const GLenum          primitiveType)
+Program::Program(VertexShader   vertexShader, 
+                 FragmentShader fragShader,
+                 const GLenum         primitiveType)
   : primitiveType_(primitiveType)
   , progId_       (0) 
 {
+  Log::debug("Building shader program from vp: % and fp: %", 
+             vertexShader.sourcePath(), 
+             fragShader.sourcePath());
+
   progId_ = glCreateProgram();
   if (!progId_) {
     Log::error("Could not create program.");

@@ -39,16 +39,21 @@ using namespace pronghorn;
 
 //------------------------------------------------------------------------------
 
-Shader::Shader(GLenum type, const char* pSource) 
-  : shaderId_    (0) 
+Shader::Shader(GLenum type, const char* pSourcePath) 
+  : shaderId_   (0) 
+  , sourcePath_ (pSourcePath)
 {
+  auto pSource = AssetManager::loadText(sourcePath_);
+  Log::error("Loaded shader from %", pSourcePath);
+
   shaderId_ = glCreateShader(type);
   if (!shaderId_) {
     Log::error("Could not create shader.");
     throw;
   }
 
-  glShaderSource(shaderId_, 1, &pSource, 0);
+  auto pSourceRaw = pSource.get();
+  glShaderSource(shaderId_, 1, &pSourceRaw, 0);
   glCompileShader(shaderId_);
 
   GLint compiled = GL_FALSE;
@@ -60,7 +65,7 @@ Shader::Shader(GLenum type, const char* pSource)
       std::unique_ptr<GLchar> buffer(new GLchar[bufferLength]);
       glGetShaderInfoLog(shaderId_, bufferLength, 0, buffer.get());
       Log::error("Could not compile shader:\n%\n", buffer.get());
-      Log::error("\n%\n", pSource);
+      Log::error("\nin %\n", pSourcePath);
     }
     throw;
   }
@@ -83,15 +88,23 @@ Shader::getId() const {
 
 //------------------------------------------------------------------------------
 
-VertexShader::VertexShader(const char* pSource) 
-  : Shader (Shader::VERTEX, pSource) 
+const std::string&
+Shader::sourcePath() const {
+  return sourcePath_;
+}
+
+
+//------------------------------------------------------------------------------
+
+VertexShader::VertexShader(const char* pSourcePath) 
+  : Shader (Shader::VERTEX, pSourcePath) 
 {
 }
 
 //------------------------------------------------------------------------------
 
-FragmentShader::FragmentShader(const char* pSource) 
-  : Shader (Shader::FRAGMENT, pSource) 
+FragmentShader::FragmentShader(const char* pSourcePath) 
+  : Shader (Shader::FRAGMENT, pSourcePath) 
 {
 }
 

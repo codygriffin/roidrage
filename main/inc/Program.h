@@ -49,9 +49,9 @@ class VertexShader;
 
 class Program {
 public:
-  Program(const VertexShader&   vertexShader, 
-          const FragmentShader& fragShader,
-          const GLenum          primitiveType = defaultPrimitiveType_);
+  Program(VertexShader   vertexShader, 
+          FragmentShader fragShader,
+          const GLenum   primitiveType = defaultPrimitiveType_);
  ~Program();
 
   GLuint getId() const;
