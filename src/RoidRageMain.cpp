@@ -131,7 +131,7 @@ int main(void)
   glfwSetMouseButtonCallback(window, mouse_callback);
   glfwSetCursorPosCallback(window, pos_callback);
 
-  ratio = height/480.0f;
+  ratio = 2.0f;
 
   Log::info("********************************************************************************");
   pRoidRage = new RoidRageMachine(width, height, ratio);

@@ -223,7 +223,9 @@ struct GlProgram : Component<GlProgram> {
 };
 
 struct Transform : Component<Transform> {
-  glm::mat4 transform;
+  glm::mat4  transform;
+  Transform* parent;
+  Transform(Transform* p = 0) : parent(p) {}
 };
 
 //------------------------------------------------------------------------------

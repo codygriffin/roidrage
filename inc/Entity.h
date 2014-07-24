@@ -21,11 +21,13 @@
 
 struct System;
 struct IComponent {
+  virtual ~IComponent() {}
   virtual std::string toString() = 0;
 };
 
 template <typename T>
 struct Component : public IComponent {
+  virtual ~Component() {}
   // knows what type it is
   virtual std::string toString() {
     return "???";
@@ -35,6 +37,7 @@ struct Component : public IComponent {
     return this < &other; 
   }
 };
+#define COMPONENT(n) struct n : public Component<n>
 
 //------------------------------------------------------------------------------
   
@@ -111,8 +114,8 @@ struct Entity {
   template <typename T, typename...Args>
   void add(Args...args);
 
-  template <typename t>
-  void rem();
+  template <typename T, typename...Args>
+  void replace(Args...args);
 
   void rem(const std::type_index& i);
 
@@ -262,17 +265,18 @@ Entity::add(Args...args) {
   throw std::runtime_error("Cannot add duplicate component");
 }
 
-template <typename T>
+template <typename T, typename...Args>
 void
-Entity::rem() {
+Entity::replace(Args...args) {
   auto item = components_.find(index<T>());
   if (item != components_.end()) {
-    system_.remove(name());
-    components_.erase(item);
+    //delete item->second;
+    new (item->second) T(args...);
+    //system_.indexEntity(*this);
     return;
   }
 
-  throw std::runtime_error("Cannot remove non-existent component");
+  throw std::runtime_error("Cannot replace non-existent component");
 }
 
 template <typename T>

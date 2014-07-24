@@ -11,6 +11,8 @@
 #define INCLUDED_GLM_HPP
 #endif
 
+#include <Display.h>
+
 //------------------------------------------------------------------------------
 
 namespace roidrage { 
@@ -32,11 +34,11 @@ struct OrthoCamera  {
   float            getHeight() const;
 
   glm::vec2        toWorld(const glm::vec2& p) {
-    return glm::vec2(p.x - width_/2.0f, p.y - height_/2.0) + pos_;
+    return 4.0f * glm::vec2(p.x - width_/2.0f, p.y - height_/2.0f);
   }
 
   glm::vec2        toScreen(const glm::vec2& p) {
-    return glm::vec2(p.x + width_/2.0f, p.y + height_/2.0) - pos_;
+    return (glm::vec2(p.x + width_/2.0f, p.y + height_/2.0));
   }
   
 protected:

@@ -47,7 +47,6 @@ protected:
 private:
 
   // Queue of work to be executed in game-context
-  corvid::WorkQueue    gameQueue_;
   corvid::TimerReactor timerReactor_;
 };
 

@@ -22,7 +22,7 @@
 #include "Renderable.h"
 
 #include "Entity.h"
-#include "Systems.h"
+//#include "Systems.h"
 
 #include "Log.h"
 
@@ -38,21 +38,94 @@ using namespace corvid;
 
 //------------------------------------------------------------------------------
 
+
 static  System               game_;
+static  corvid::WorkQueue    gameQueue_;
+
+struct Time : Component<Time> {
+  float pos;
+  float vel;
+  Time() : pos(0), vel(0) {}
+};
+
+struct Target : public Component<Target> {
+  glm::vec2 position;
+  Target(const glm::vec2& p) : position(p) {}
+};
+
+//------------------------------------------------------------------------------
 
 void 
-transform(Transform* x, Position* p, Radius* r) {
-  glm::vec2 pos = p->pos;
-  float     mag = r->mag;
+updateTime(Time* time) {
+  float current = glfwGetTime();
+  time->vel = current - time->pos;
+  time->pos = current; 
+  //Log::debug("Tick ∂=%", time->vel);
+}
+
+//------------------------------------------------------------------------------
+
+void updatePosition(Time* time, Position* pos) {
+  // Clamp that shit down - what about lightspeed/relativity?
+  //if (glm::length(pos->vel) > pos->maxVel) {
+  //  pos->vel = glm::normalize(pos->vel) * pos->maxVel;
+  //}
+
+  //TODO better integration (RK4?)
+  pos->vel     += pos->acc     * float(time->vel);
+  pos->avel    += pos->aacc    * float(time->vel);
+
+  pos->pos     += pos->vel     * float(time->vel);
+  pos->apos    += pos->avel    * float(time->vel);
+
+  if (glm::length(pos->vel) > 0.0f) {
+    glm::vec2 dir = glm::normalize(pos->vel);
+    pos->apos = atan2(dir.y, dir.x) * 360.0f/6.28f + 90.0f;
+  }
+
+  // Clamp our angulars
+  if (pos->apos >  360.0f) {
+    pos->apos = 0.0f;
+  }
+  if (pos->apos < -360.0f) {
+    pos->apos = 0.0f;
+  }
+
+  if (pos->avel >  3.0f) {
+    pos->avel = 3.0f;
+  }
+  if (pos->avel < -3.0f) {
+    pos->avel = -3.0f;
+  }
+
+  if (pos->aacc >  0.004f) {
+    pos->aacc = 0.004f;
+  }
+  if (pos->aacc < -0.004f) {
+    pos->aacc = -0.004f;
+  }
+
+  // scalar distance - used for expiring pewpews (perhaps time is better?)
+  pos->distance += glm::length(pos->vel * float(time->vel));
+}
+
+//------------------------------------------------------------------------------
+
+void 
+transform1(Transform* x, Position* p) {
+  x->transform = glm::mat4();
+
+  // Apply parent transformations
+  // TODO order of this index matters now (parent/child dependency between transforms)
+  if (x->parent) { 
+    x->transform = x->parent->transform;   
+  } 
 
   // Set our position, rotation and scale according
   // to the position, radius and angular position.
-  x->transform = glm::scale(
-    glm::translate(
-      glm::mat4(),
-      glm::vec3(pos.x, pos.y, 0.0f)
-    ),
-    glm::vec3(mag*1.0f)
+  x->transform = glm::translate(
+    x->transform, 
+    glm::vec3(p->pos.x, p->pos.y, 0.0f)
   );
 
   x->transform = glm::rotate(
@@ -62,11 +135,29 @@ transform(Transform* x, Position* p, Radius* r) {
   );
 }
 
+void 
+transform2(Transform* x, Radius* r) {
+  x->transform = glm::scale(
+    x->transform, 
+    glm::vec3(r->mag)
+  );
+}
+
+//------------------------------------------------------------------------------
+
+void
+target(Position* p, Target* t) {
+  p->vel = t->position - p->pos;
+  if (glm::length(p->vel) > 1e06f) {
+    throw std::runtime_error("runaway rocket!");
+  }
+}
+
 //------------------------------------------------------------------------------
 
 glm::vec2 Selectable::position;
 void 
-testSelected(Selectable* s, Position* p, Radius* r) {
+onClick(Selectable* s, Position* p, Radius* r) {
   // Displacement is the vector pointing from this entity to the 
   // other entity, with a length corresponding to the distance
   auto displacement = p->pos - Selectable::position;
@@ -75,17 +166,20 @@ testSelected(Selectable* s, Position* p, Radius* r) {
              p->pos.x, p->pos.y,
              r->mag);
 
-  if (r->mag > glm::length(displacement)) { 
+  auto diff = Selectable::position - p->pos;
+  Log::debug("∂(%,%) m=%", 
+             diff.x, diff.y, glm::length(diff));
+
+  const float paddingFactor = 2.0f;  
+  if (paddingFactor*r->mag > glm::length(displacement)) { 
     if (!s->selected) {
       s->selected = true;
       auto& indicator = game_.entity();
       s->indicator = indicator.name();
       Log::debug("Created indicator[%]", indicator.name());
       indicator.add<Position>();
-      indicator.get<Position>()->pos.x = 0;
-      indicator.get<Position>()->pos.y = 0;
       indicator.add<Radius>(90.0f);
-      indicator.add<Transform>();
+      indicator.add<Transform>(game_.entity("ship").get<Transform>());
       indicator.add<Color>(0.8, 0.9, 0.8, 0.8f);
       indicator.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                                FragmentShader("assets/gpu/selected.fp"));
@@ -105,6 +199,17 @@ testSelected(Selectable* s, Position* p, Radius* r) {
       s->indicator = "";
       s->selected = false;
     }
+  } else {
+    gameQueue_.enqueue( [&] () {
+      auto& ship = game_.entity("ship");
+      if (ship.get<Selectable>()->selected) {
+        Log::debug("old target @(%,%)", 
+                    ship.get<Target>()->position.x, ship.get<Target>()->position.y);
+        ship.replace<Target>(Selectable::position);
+        Log::debug("new target @(%,%)", 
+                    ship.get<Target>()->position.x, ship.get<Target>()->position.y);
+      }
+    });
   }
 }
 
@@ -142,16 +247,23 @@ void renderTextured(Transform* x, GlTexture* t, GlProgram* p, GlVbo* v) {
 RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine) 
   : RoidRage::State(pMachine) 
 { 
+  game_.registerIndex(updateTime);
+  game_.registerIndex(updatePosition);
+  game_.registerIndex(target);
+  game_.registerIndex(transform1);
+  game_.registerIndex(transform2);
   game_.registerIndex(renderSolid);
   game_.registerIndex(renderTextured);
-  game_.registerIndex(transform);
-  game_.registerIndex(testSelected);
+  game_.registerIndex(onClick);
 
-  auto& ship = game_.entity();
+  auto& ship = game_.entity("ship");
   Log::debug("Created ship[%]", ship.name());
+
+  ship.add<Time>();
+  ship.get<Time>()->pos = 0.0f;
+  ship.get<Time>()->vel = 0.016f;
   ship.add<Position>();
-  ship.get<Position>()->pos.x = 0;
-  ship.get<Position>()->pos.y = 0;
+  ship.add<Target>(glm::vec2());
   ship.add<Radius>(90.0f);
   ship.add<Selectable>(false);
   ship.add<Transform>();
@@ -167,10 +279,6 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
   ship.add<GlVbo>(16*sizeof(GLfloat), pQuad);
   ship.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/ship01.png",    w_, h_).get());
 
-  //ship.add<Quad>(pRoidRage->pSpaceshipTex[1].get(), 
-  //               pRoidRage->pProgram.get(), 
-  //               pRoidRage->pQuadVboPos.get());
-
   timerReactor_.setPeriodic(std::chrono::seconds(5), [&] () {
     gameQueue_.enqueue( [&] () {
       Log::debug("<Every 5 Seconds>");
@@ -182,8 +290,11 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
 
 void 
 RoidRageGameTesting::onEvent(Tick tick) {
-
-  game_.visit(transform); 
+  game_.visit(updateTime); 
+  game_.visit(updatePosition); 
+  game_.visit(target); 
+  game_.visit(transform1); 
+  game_.visit(transform2); 
 
   pRoidRage->ortho = RenderState::pCam_->getOrthoMatrix(); 
   glClearColor(0.07f, 0.07f, 0.13f, 1.0f);
@@ -218,7 +329,7 @@ RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
     auto screen = glm::vec2(mouse.x, mouse.y);
     auto world = RenderState::pCam_->toWorld(screen);
     Selectable::position = world;
-    game_.visit(testSelected); 
+    game_.visit(onClick); 
   }
 }
 

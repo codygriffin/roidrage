@@ -19,9 +19,8 @@ Entity&
 System::entity(const std::string& name) {
   auto e = entities_.find(name);
   if (e == entities_.end()) {
-    Entity& e = *new Entity(*this, name);
-    entities_.emplace(name, e);    
-    return e;
+    auto e = entities_.emplace(name, Entity(*this, name));
+    return e.first->second;
   }
 
   return e->second;
