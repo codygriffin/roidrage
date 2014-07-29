@@ -7,11 +7,12 @@
 #define INCLUDED_ORTHOCAMERA_H
 
 #ifndef INCLUDED_GLM_HPP
-#include "glm.hpp"
+#include <glm.hpp>
 #define INCLUDED_GLM_HPP
 #endif
 
-#include <Display.h>
+#include "Log.h"
+#include "Display.h"
 
 //------------------------------------------------------------------------------
 
@@ -33,8 +34,11 @@ struct OrthoCamera  {
   float            getWidth () const;
   float            getHeight() const;
 
-  glm::vec2        toWorld(const glm::vec2& p) {
-    return 4.0f * glm::vec2(p.x - width_/2.0f, p.y - height_/2.0f);
+  glm::vec2        toWorld(const glm::vec2& screen) {
+    auto world = 4.0f * glm::vec2(screen.x - width_/2.0f, screen.y - height_/2.0f);
+    pronghorn::Log::debug("display = % x %; screen = (%,%); world = (%,%)", 
+               width_, height_, screen.x, screen.y, world.x, world.y); 
+    return world;
   }
 
   glm::vec2        toScreen(const glm::vec2& p) {

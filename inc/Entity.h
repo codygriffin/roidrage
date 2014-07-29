@@ -13,6 +13,7 @@
 #include <typeindex>
 
 #include <iostream>
+#include <list>
 #include <vector>
 #include <map>
 #include <set>
@@ -49,6 +50,8 @@ struct IIndex {
 
 template<typename...Args>
 struct Index : public IIndex {
+  typedef std::tuple<Args*...> Key;
+
   void index(Entity& entity);
 
   void remove(Entity& entity);
@@ -56,14 +59,27 @@ struct Index : public IIndex {
   void 
   foreach(void (*pVisitor)(Args*...));
 
-  std::set<std::tuple<Args*...>> index_;
-};
+  template <typename Context>
+  void 
+  foreachWith(Context* pContext, void (*pVisitor)(Context*, Args*...));
 
+  struct Order {
+    bool operator()(const Key& a, const Key& b) {
+      return std::get<0>(a) < std::get<0>(b);
+    }
+  };
+
+  std::set<Key, Order> index_;
+};
 
 struct System {
   template <typename...Args>
-  Index<Args...> 
+  Index<Args...>&
   index();
+
+  template <typename Context>
+  Context&
+  context();
 
   template <typename...Args>
   void 
@@ -72,10 +88,22 @@ struct System {
   template <typename...Args>
   void 
   registerIndex();
+
+  template <typename Context, typename...Args>
+  void 
+  registerContext(Context* pContext);
+
+  template <typename Context, typename...Args>
+  void 
+  registerContext(Context* pContext, void (*pVisitor)(Context*, Args*...));
   
   template <typename...Args>
   void 
-  visit(void (*pVisitor)(Args*...));
+  exec(void (*pVisitor)(Args*...));
+
+  template <typename Context, typename...Args>
+  void 
+  execWith(void (*pVisitor)(Context*, Args*...));
 
   Entity& 
   entity(const std::string& name);
@@ -90,8 +118,9 @@ struct System {
   indexEntity(Entity& e);
 
 private:
-  std::map<std::string, Entity>      entities_;
-  std::map<std::type_index, IIndex*> indices_;
+  std::map<std::string,      Entity>   entities_;
+  std::map<std::type_index, IIndex*>   indices_;
+  std::map<std::type_index, void*>     contexts_;
 };
 
 //------------------------------------------------------------------------------
@@ -135,7 +164,7 @@ private:
   std::string name_;
   System&     system_;
 
-  std::map<std::type_index, IComponent*> components_;
+  std::map<std::type_index, void*> components_;
 };
 
 //------------------------------------------------------------------------------
@@ -145,26 +174,35 @@ void
 Index<Args...>::index(Entity& entity) {
   if (entity.hasAll<Args...>()) {
     index_.insert(entity.project<Args...>());
-  } else {
   }
 }
 
-template<typename...Args>
+template <typename...Args>
 void 
 Index<Args...>::remove(Entity& entity) {
   if (entity.hasAll<Args...>()) {
-    auto e = index_.find(entity.project<Args...>());
+    auto e = std::find(index_.begin(), index_.end(), entity.project<Args...>());
     if (e != index_.end()) {
       index_.erase(e);
     } 
   }
 }
 
-template<typename...Args>
+template <typename...Args>
 void 
 Index<Args...>::foreach(void (*pVisitor)(Args*...)) {
   for (auto c : index_) {
     corvid::apply(pVisitor, c);
+  } 
+}
+
+template <typename...Args>
+template <typename Context>
+void 
+Index<Args...>::foreachWith(Context* pContext, void (*pVisitor)(Context*, Args*...)) {
+  for (auto c : index_) {
+    auto augmented = std::tuple_cat(std::make_tuple(pContext), c);
+    corvid::apply(pVisitor, augmented);
   } 
 }
 
@@ -207,11 +245,22 @@ struct EntityProj<> {
 //------------------------------------------------------------------------------
 
 template <typename...Args>
-Index<Args...> 
+Index<Args...>& 
 System::index() {
   auto item = indices_.find(std::type_index(typeid(Index<Args...>)));
   if (item != indices_.end()) {
     return *static_cast<Index<Args...>*>(item->second);
+  }
+
+  throw std::runtime_error("Cannot get non-existent index");
+}
+
+template <typename Context>
+Context&
+System::context() {
+  auto item = contexts_.find(std::type_index(typeid(Context)));
+  if (item != contexts_.end()) {
+    return *static_cast<Context*>(item->second);
   }
 
   throw std::runtime_error("Cannot get non-existent index");
@@ -232,10 +281,32 @@ System::registerIndex() {
   }
 }
 
+template <typename Context, typename...Args>
+void 
+System::registerContext(Context* pContext, void (*pVisitor)(Context*, Args*...)) {
+  registerContext<Context, Args...>(pContext);
+}
+
+template <typename Context, typename...Args>
+void 
+System::registerContext(Context* pContext) {
+  auto item = contexts_.find(std::type_index(typeid(Context)));
+  if (item == contexts_.end()) {
+    contexts_.emplace(std::make_pair(std::type_index(typeid(Context)), pContext));
+  }
+  registerIndex<Context, Args...>();
+}
+
 template <typename...Args>
 void 
-System::visit(void (*pVisitor)(Args*...)) {
+System::exec(void (*pVisitor)(Args*...)) {
   index<Args...>().foreach(pVisitor);
+}
+
+template <typename Context, typename...Args>
+void 
+System::execWith(void (*pVisitor)(Context*, Args*...)) {
+  index<Args...>().foreachWith(&context<Context>(), pVisitor);
 }
 
 //------------------------------------------------------------------------------

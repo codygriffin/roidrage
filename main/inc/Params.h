@@ -188,11 +188,14 @@ struct Fuel {
 struct Selectable : Component<Selectable> {
   bool        selected;
   std::string indicator;
-  Selectable(bool s) 
-    : selected(s) {
+  std::string entity;
+  Selectable(bool s, const std::string& name) 
+    : selected(s)
+    , entity(name) {
   }
 
   static glm::vec2 position;
+  static bool      clicked;
 };
 
 struct GlVbo : Component<GlVbo> {

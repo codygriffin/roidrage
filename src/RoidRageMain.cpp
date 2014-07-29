@@ -140,14 +140,12 @@ int main(void)
   Log::info("RoidRage Initialized (w=%, h=%, d=%)", width, height, ratio);
   Log::info("********************************************************************************");
 
+  // Why must I do this?
   GLuint vao;
   glGenVertexArrays(1, &vao);
   glBindVertexArray(vao);
+
   while (!glfwWindowShouldClose(window)) {
-    float ratio;
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-    ratio = width / (float) height;
     pRoidRage->dispatch(Tick());
     glfwSwapBuffers(window);
     glfwPollEvents();
