@@ -50,6 +50,9 @@ void apply(V& v, A& a);
 template <typename A, typename R, typename...S>
 R    apply(R (*f)(S...), A& a);
 
+template <typename T, typename A, typename R, typename...S>
+R    apply(T& t, R (T::*f)(S...), A& a);
+
 template <typename P, typename A>
 bool test(P& p, A& a);
 

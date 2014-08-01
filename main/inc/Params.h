@@ -229,6 +229,16 @@ struct Transform : Component<Transform> {
   glm::mat4  transform;
   Transform* parent;
   Transform(Transform* p = 0) : parent(p) {}
+  unsigned depth() const {
+    if (!parent) { 
+      return 0; 
+    }
+
+    return 1 + parent->depth();
+  } 
+  bool operator<(const Transform& rhs) const {
+    return depth() > rhs.depth();
+  }
 };
 
 //------------------------------------------------------------------------------

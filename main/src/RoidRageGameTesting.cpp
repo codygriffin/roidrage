@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
+#include <map>
 
 //------------------------------------------------------------------------------
 
@@ -123,37 +124,51 @@ void updatePosition(Time* time, Position* pos) {
 
 //------------------------------------------------------------------------------
 
-void 
-transform1(Transform* x, Position* p) {
-  x->transform = glm::mat4();
+struct Transformations {
+  void 
+  transform1(Transform* x, Position* p) {
+    transforms_.emplace(std::make_pair(x->depth(), [=]() {
+      x->transform = glm::mat4();
 
-  // Apply parent transformations
-  // TODO order of this index matters now (parent/child dependency between transforms)
-  if (x->parent) { 
-    x->transform = x->parent->transform;   
-  } 
+      // Apply parent transformations
+      // TODO order of this index matters now (parent/child dependency between transforms)
+      if (x->parent) { 
+        x->transform = x->parent->transform;   
+      }
 
-  // Set our position, rotation and scale according
-  // to the position, radius and angular position.
-  x->transform = glm::translate(
-    x->transform, 
-    glm::vec3(p->pos.x, p->pos.y, 0.0f)
-  );
+      // Set our position, rotation and scale according
+      // to the position, radius and angular position.
+      x->transform = glm::translate(
+        x->transform, 
+        glm::vec3(p->pos.x, p->pos.y, 0.0f)
+      );
 
-  x->transform = glm::rotate(
-    x->transform, 
-    glm::radians(p->apos),
-    glm::vec3(0.0f,0.0f,1.0f)
-  );
-}
+      x->transform = glm::rotate(
+        x->transform, 
+        glm::radians(p->apos),
+        glm::vec3(0.0f,0.0f,1.0f)
+      );
+    }));
+  }
 
-void 
-transform2(Transform* x, Radius* r) {
-  x->transform = glm::scale(
-    x->transform, 
-    glm::vec3(r->mag)
-  );
-}
+  void 
+  transform2(Transform* x, Radius* r) {
+    x->transform = glm::scale(
+      x->transform, 
+      glm::vec3(r->mag)
+    );
+  }
+  
+  void
+  exec() {
+    for (auto kv : transforms_) {
+      kv.second();
+    }
+    transforms_.clear();
+  }
+
+  std::multimap<unsigned, std::function<void (void)>> transforms_;
+};
 
 //------------------------------------------------------------------------------
 
@@ -264,6 +279,8 @@ void renderTextured(Layer* l, Transform* x, GlTexture* t, GlProgram* p, GlVbo* v
   p->program.execute  (0, 4);
 }
 
+//------------------------------------------------------------------------------
+
 Entity& createShip(float x, float y, float r) {
   auto& ship = game_.entity();
   Log::debug("Created ship[%]", ship.name());
@@ -318,6 +335,11 @@ Entity& createRoid(float x, float y, float r) {
   return roid;
 }
 
+void
+testOrderTransform(Transform* x) {
+  Log::debug("transform depth: %", x->depth());
+}
+
 //------------------------------------------------------------------------------
 
 RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine) 
@@ -326,8 +348,8 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
   game_.registerIndex(updateTime);
   game_.registerIndex(updatePosition);
   game_.registerIndex(target);
-  game_.registerIndex(transform1);
-  game_.registerIndex(transform2);
+  game_.registerIndex(&Transformations::transform1);
+  game_.registerIndex(&Transformations::transform2);
   game_.registerIndex(renderSolid);
   game_.registerIndex(renderTextured);
   game_.registerIndex(onClick);
@@ -363,11 +385,16 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
 
 void 
 RoidRageGameTesting::onEvent(Tick tick) {
+  Transformations transforms;
+
   game_.exec(updateTime); 
   game_.exec(updatePosition); 
   game_.exec(target); 
-  game_.exec(transform1); 
-  game_.exec(transform2); 
+
+  game_.exec(transforms, &Transformations::transform1); 
+  transforms.exec();
+
+  game_.exec(transforms, &Transformations::transform2); 
 
   //pRoidRage->ortho = RenderState::pCam_->getOrthoMatrix(); 
   glClearColor(0.07f, 0.07f, 0.13f, 1.0f);

@@ -59,17 +59,11 @@ struct Index : public IIndex {
   void 
   foreach(void (*pVisitor)(Args*...));
 
-  template <typename Context>
+  template<class T>
   void 
-  foreachWith(Context* pContext, void (*pVisitor)(Context*, Args*...));
+  foreach(T& context, void (T::*pVisitor)(Args*...));
 
-  struct Order {
-    bool operator()(const Key& a, const Key& b) {
-      return std::get<0>(a) < std::get<0>(b);
-    }
-  };
-
-  std::set<Key, Order> index_;
+  std::set<Key> index_;
 };
 
 struct System {
@@ -77,33 +71,25 @@ struct System {
   Index<Args...>&
   index();
 
-  template <typename Context>
-  Context&
-  context();
-
   template <typename...Args>
   void 
   registerIndex(void (*pVisitor)(Args*...));
 
+  template <typename T, typename...Args>
+  void 
+  registerIndex(void (T::*pVisitor)(Args*...));
+
   template <typename...Args>
   void 
   registerIndex();
-
-  template <typename Context, typename...Args>
-  void 
-  registerContext(Context* pContext);
-
-  template <typename Context, typename...Args>
-  void 
-  registerContext(Context* pContext, void (*pVisitor)(Context*, Args*...));
   
   template <typename...Args>
   void 
   exec(void (*pVisitor)(Args*...));
 
-  template <typename Context, typename...Args>
+  template <typename T, typename...Args>
   void 
-  execWith(void (*pVisitor)(Context*, Args*...));
+  exec(T&, void (T::*pVisitor)(Args*...));
 
   Entity& 
   entity(const std::string& name);
@@ -197,12 +183,11 @@ Index<Args...>::foreach(void (*pVisitor)(Args*...)) {
 }
 
 template <typename...Args>
-template <typename Context>
+template <typename T>
 void 
-Index<Args...>::foreachWith(Context* pContext, void (*pVisitor)(Context*, Args*...)) {
+Index<Args...>::foreach(T& context, void (T::*pVisitor)(Args*...)) {
   for (auto c : index_) {
-    auto augmented = std::tuple_cat(std::make_tuple(pContext), c);
-    corvid::apply(pVisitor, augmented);
+    corvid::apply(context, pVisitor, c);
   } 
 }
 
@@ -255,20 +240,15 @@ System::index() {
   throw std::runtime_error("Cannot get non-existent index");
 }
 
-template <typename Context>
-Context&
-System::context() {
-  auto item = contexts_.find(std::type_index(typeid(Context)));
-  if (item != contexts_.end()) {
-    return *static_cast<Context*>(item->second);
-  }
-
-  throw std::runtime_error("Cannot get non-existent index");
-}
-
 template <typename...Args>
 void 
 System::registerIndex(void (*pVisitor)(Args*...)) {
+  registerIndex<Args...>();
+}
+
+template <typename T, typename...Args>
+void 
+System::registerIndex(void (T::*pVisitor)(Args*...)) {
   registerIndex<Args...>();
 }
 
@@ -281,32 +261,16 @@ System::registerIndex() {
   }
 }
 
-template <typename Context, typename...Args>
-void 
-System::registerContext(Context* pContext, void (*pVisitor)(Context*, Args*...)) {
-  registerContext<Context, Args...>(pContext);
-}
-
-template <typename Context, typename...Args>
-void 
-System::registerContext(Context* pContext) {
-  auto item = contexts_.find(std::type_index(typeid(Context)));
-  if (item == contexts_.end()) {
-    contexts_.emplace(std::make_pair(std::type_index(typeid(Context)), pContext));
-  }
-  registerIndex<Context, Args...>();
-}
-
 template <typename...Args>
 void 
 System::exec(void (*pVisitor)(Args*...)) {
   index<Args...>().foreach(pVisitor);
 }
 
-template <typename Context, typename...Args>
+template <typename T, typename...Args>
 void 
-System::execWith(void (*pVisitor)(Context*, Args*...)) {
-  index<Args...>().foreachWith(&context<Context>(), pVisitor);
+System::exec(T& t, void (T::*pVisitor)(Args*...)) {
+  index<Args...>().foreach(t, pVisitor);
 }
 
 //------------------------------------------------------------------------------

@@ -77,6 +77,16 @@ apply(R (*f)(S...), A& a) {
 
 //------------------------------------------------------------------------------
 
+template <typename T, typename A, typename R, typename...S>
+inline R 
+apply(T& t, R (T::*f)(S...), A& a) {
+  return TupleApply<
+    std::tuple_size<A>::value
+  >::apply(t, f, a);
+}
+
+//------------------------------------------------------------------------------
+
 template <typename P, typename A>
 inline bool 
 test(P& p, A& a) {
@@ -89,7 +99,7 @@ test(P& p, A& a) {
 
 template <int N> 
 struct TupleApply { 
-    template <class V, class... ArgsV, class... Args> 
+    template <typename V, typename... ArgsV, typename... Args> 
     inline static void 
     apply(V*                    pVisitor,
           std::tuple<ArgsV...>& data,
@@ -100,12 +110,24 @@ struct TupleApply {
                            args...);
   }
 
-  template <class R, class... ArgsV, class... Args> 
+  template <typename R, typename... ArgsV, typename... Args> 
   inline static R 
   apply(R (*pVisitor)(ArgsV...),
         std::tuple<ArgsV...>& data,
         Args...               args) {
     return TupleApply<N-1>::apply(pVisitor, 
+                                  data, 
+                                  std::get<N-1>(data), 
+                                  args...);
+  }
+
+  template <typename T, typename R, typename... ArgsV, typename... Args> 
+  inline static R 
+  apply(T& t, R (T::*pVisitor)(ArgsV...),
+        std::tuple<ArgsV...>& data,
+        Args...               args) {
+    return TupleApply<N-1>::apply(t,
+                                  pVisitor, 
                                   data, 
                                   std::get<N-1>(data), 
                                   args...);
@@ -116,7 +138,7 @@ struct TupleApply {
 
 template <> 
 struct TupleApply<0> {
-  template <class V, class... ArgsV, class... Args> 
+  template <typename V, typename... ArgsV, typename... Args> 
   inline static void 
   apply(V*                    pVisitor,
         std::tuple<ArgsV...>& data,
@@ -124,12 +146,20 @@ struct TupleApply<0> {
     (*pVisitor)(args...);
   }
 
-  template <class R, class... ArgsV, class... Args> 
+  template <typename R, typename... ArgsV, typename... Args> 
   inline static R 
   apply(R (*pVisitor)(ArgsV...),
         std::tuple<ArgsV...>& data,
         Args...               args) {
     return (*pVisitor)(args...);
+  }
+
+  template <typename T, typename R, typename... ArgsV, typename... Args> 
+  inline static R 
+  apply(T& t, R (T::*pVisitor)(ArgsV...),
+        std::tuple<ArgsV...>& data,
+        Args...               args) {
+    return (t.*pVisitor)(args...);
   }
 };
 
@@ -137,7 +167,7 @@ struct TupleApply<0> {
 
 template <int N> 
 struct TupleTest { 
-  template <class P, class... ArgsP, class... Args> 
+  template <typename P, typename... ArgsP, typename... Args> 
   inline static bool 
   test(P*                     pPredicate,
        std::tuple<ArgsP...>&  data,
@@ -153,7 +183,7 @@ struct TupleTest {
 
 template <> 
 struct TupleTest<0> {
-  template <class P, class... ArgsP, class... Args> 
+  template <typename P, typename... ArgsP, typename... Args> 
   inline static bool 
   test(P*                    pPredicate, 
        std::tuple<ArgsP...>& data,
