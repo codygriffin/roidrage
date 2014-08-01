@@ -13,15 +13,12 @@
 #include "Framebuffer.h"
 #include "Texture.h"
 #include "VertexBufferObject.h"
-#include "OrthoCamera.h"
 
 #include "AssetManager.h"
-#include "RenderState.h"
 #include "Display.h"
 
-#include "Renderable.h"
-
 #include "Entity.h"
+#include "System.h"
 //#include "Systems.h"
 
 #include "Log.h"
@@ -36,6 +33,7 @@
 using namespace pronghorn;
 using namespace roidrage;
 using namespace corvid;
+using namespace boson;
 
 //------------------------------------------------------------------------------
 
@@ -396,7 +394,6 @@ RoidRageGameTesting::onEvent(Tick tick) {
 
   game_.exec(transforms, &Transformations::transform2); 
 
-  //pRoidRage->ortho = RenderState::pCam_->getOrthoMatrix(); 
   glClearColor(0.07f, 0.07f, 0.13f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
 

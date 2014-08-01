@@ -107,10 +107,10 @@ Ship::shoot() {
 
   shoot(0.0f);
 
-  if (hasTriple_) {
+  //if (hasTriple_) {
     shoot( 15.0f);
     shoot(-15.0f);
-  }
+  //}
 }
 
 //------------------------------------------------------------------------------
@@ -123,9 +123,9 @@ Ship::shoot(float angle) {
   pPewPew->Position::vel = Position::vel + (glm::vec2(cos((Position::apos-90.0f-angle) * 6.28f/360.0f), 
                                                       sin((Position::apos-90.0f-angle) * 6.28f/360.0f)) * 3.0f);
   // Powerups!
-  if (hasCharge_) {
+  //if (hasCharge_) {
     pPewPew->supercharge();
-  }
+  //}
 
   // Add this pewpew to the population
   pRoidRage->population.add(pPewPew);

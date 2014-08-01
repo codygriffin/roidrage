@@ -1,17 +1,10 @@
-#include <Entity.h>
+#include "System.h"
+#include "Entity.h"
+#include <cstdlib>
 
 //------------------------------------------------------------------------------
 
-void
-Entity::rem(const std::type_index& i) {
-  auto item = components_.find(i);
-  if (item != components_.end()) {
-    components_.erase(item);
-    return;
-  }
-
-  throw std::runtime_error("Cannot remove non-existent component");
-}
+using namespace boson;
 
 //------------------------------------------------------------------------------
 

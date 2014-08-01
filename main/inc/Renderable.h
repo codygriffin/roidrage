@@ -45,7 +45,7 @@ struct RenderPass {
 };
 
 
-struct Renderable : public Component<Renderable> {
+struct Renderable {
   void render(OrthoCamera* pCam);
 
   inline RenderPass& getRenderPass() {

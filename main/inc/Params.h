@@ -16,7 +16,8 @@
 #include "Program.h"
 #include "Texture.h"
 #include "VertexBufferObject.h"
-#include "Entity.h"
+
+#include "Component.h"
 
 //------------------------------------------------------------------------------
 
@@ -26,11 +27,11 @@ struct Glow {
   float glow;
 };
 
-struct TimeDelta : public Component<TimeDelta> {
+struct TimeDelta : public boson::Component<TimeDelta> {
   int ms;
 };
 
-struct Position : public Component<Position> {
+struct Position : public boson::Component<Position> {
   glm::vec2 pos;
   float     apos;
 
@@ -57,7 +58,7 @@ struct Position : public Component<Position> {
   static constexpr float maxDistance =  8000.0f;
 };
 
-struct Color  : public Component<Color> {
+struct Color  : public boson::Component<Color> {
   Color (float r=0.0f, float g=1.0f, float b=0.0f, float a=0.5f) 
     : color(r,g,b,a) {
   }
@@ -80,7 +81,7 @@ struct Mass {
   float mag;
 };
 
-struct Radius  : public Component<Radius> {
+struct Radius  : public boson::Component<Radius> {
   Radius(float r) 
     : mag(r) {
   }
@@ -185,7 +186,7 @@ struct Fuel {
   }
 };
 
-struct Selectable : Component<Selectable> {
+struct Selectable : boson::Component<Selectable> {
   bool        selected;
   std::string indicator;
   std::string entity;
@@ -198,14 +199,14 @@ struct Selectable : Component<Selectable> {
   static bool      clicked;
 };
 
-struct GlVbo : Component<GlVbo> {
+struct GlVbo : boson::Component<GlVbo> {
   pronghorn::VertexBufferObject vbo;
   GlVbo(GLsizeiptr sizeBytes, const GLvoid* pData = 0, GLenum usage = pronghorn::VertexBufferObject::STATIC) 
   : vbo(sizeBytes, pData, usage) {
   }
 };
 
-struct GlTexture : Component<GlTexture> {
+struct GlTexture : boson::Component<GlTexture> {
   pronghorn::Texture texture;
   GlTexture(GLsizei       width, 
             GLsizei       height, 
@@ -215,7 +216,7 @@ struct GlTexture : Component<GlTexture> {
   }
 };
 
-struct GlProgram : Component<GlProgram> {
+struct GlProgram : boson::Component<GlProgram> {
   pronghorn::Program program;
   GlProgram(pronghorn::VertexShader   vertexShader, 
             pronghorn::FragmentShader fragShader,
@@ -225,7 +226,7 @@ struct GlProgram : Component<GlProgram> {
      
 };
 
-struct Transform : Component<Transform> {
+struct Transform : boson::Component<Transform> {
   glm::mat4  transform;
   Transform* parent;
   Transform(Transform* p = 0) : parent(p) {}
