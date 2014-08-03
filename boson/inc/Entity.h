@@ -38,6 +38,9 @@ struct Entity {
   template <typename T, typename...Args>
   void replace(Args...args);
 
+  template <typename T, typename...Args>
+  void addOrReplace(Args...args);
+
   void rem(const std::type_index& i);
 
   template <typename T>
@@ -47,6 +50,10 @@ struct Entity {
   T* get();
 
   const std::string& name() const { return name_; }
+
+  template <typename E>
+  void 
+  trigger(E event);
 
 private:
   template <typename T>

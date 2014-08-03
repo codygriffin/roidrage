@@ -7,6 +7,7 @@
 #ifndef INCLUDED_INDEX_H
 #define INCLUDED_INDEX_H
 
+#include "Tuples.h"
 #include <tuple>
 #include <set>
 
@@ -27,7 +28,6 @@ struct Index : public IIndex {
   typedef std::tuple<Args*...> Key;
 
   void index(Entity& entity);
-
   void remove(Entity& entity);
 
   void 
@@ -39,7 +39,6 @@ struct Index : public IIndex {
 
   std::set<Key> index_;
 };
-
 
 //------------------------------------------------------------------------------
 

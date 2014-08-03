@@ -180,7 +180,6 @@ void updateAcceleration(Position* p1,
                         Position* p2, 
                         Charge* c2, 
                         Mass* m2) {
-  // Don't masterbate
   if (p1 == p2) return;
 
   glm::vec2 diff = p2->pos - p1->pos;

@@ -14,6 +14,7 @@ namespace boson {
 
 //------------------------------------------------------------------------------
 
+struct Entity;
 struct System;
 struct IComponent {
   virtual ~IComponent() {}
@@ -32,7 +33,17 @@ struct Component : public IComponent {
     return this < &other; 
   }
 };
-#define COMPONENT(n) struct n : public Component<n>
+
+template<typename E>
+struct Handler : public Component<Handler<E>> {
+  Handler(std::function<void (E)> fun) : handler(fun) {}
+  std::function<void (E)> handler;
+}; 
+
+struct EntityRef : public Component<EntityRef> {
+  Entity* entity;
+  EntityRef(Entity* e) : entity(e) {}
+};
 
 //------------------------------------------------------------------------------
 

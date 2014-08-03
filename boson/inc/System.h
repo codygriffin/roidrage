@@ -39,6 +39,10 @@ struct System {
   template <typename...Args>
   void 
   registerIndex();
+
+  template <typename E>
+  void 
+  registerEvent();
   
   template <typename...Args>
   void 
@@ -48,11 +52,19 @@ struct System {
   void 
   exec(T&, void (T::*pVisitor)(Args*...));
 
+  template <typename E>
+  void 
+  trigger(E event);
+
   Entity& 
   entity(const std::string& name);
 
   void 
   remove(const std::string& name);
+
+  template <typename V> 
+  void
+  visit(V v);
 
   Entity& 
   entity();
@@ -61,9 +73,8 @@ struct System {
   indexEntity(Entity& e);
 
 private:
-  std::map<std::string,      Entity>   entities_;
-  std::map<std::type_index, IIndex*>   indices_;
-  std::map<std::type_index, void*>     contexts_;
+  std::map<std::string, Entity>      entities_;
+  std::map<std::type_index, IIndex*> indices_;
 };
 
 //------------------------------------------------------------------------------

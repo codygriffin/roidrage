@@ -6,6 +6,7 @@
 #ifndef INCLUDED_ENTITY_HPP
 #define INCLUDED_ENTITY_HPP
 
+#include "Component.h"
 #include "System.h"
 
 //------------------------------------------------------------------------------
@@ -96,10 +97,28 @@ Entity::replace(Args...args) {
   throw std::runtime_error("Cannot replace non-existent component");
 }
 
+template <typename T, typename...Args>
+void
+Entity::addOrReplace(Args...args) {
+  if (has<T>()) {
+    replace<T>(args...);
+  } else {
+    add<T>(args...);
+  }
+}
+
 template <typename T>
 bool
 Entity::has() {
   return components_.find(index<T>()) != components_.end();
+}
+
+template <typename E>
+void 
+Entity::trigger(E event) {
+  if(has<Handler<E>>()) {
+    get<Handler<E>>()->handler(event);
+  }
 }
 
 template <typename T>

@@ -49,14 +49,13 @@ struct Time : Component<Time> {
 struct Target : public Component<Target> {
   glm::vec2 position;
   Target(const glm::vec2& p) : position(p) {}
+  Target(const std::string& e) : position(game_.entity(e).get<Position>()->pos) {}
 };
 
-struct Layer : public Component<Layer> {
-  int layer;
-  Layer(int l = 0) : layer(l) {}
-  bool operator<(const Layer& rhs) {
-    return layer < rhs.layer;
-  }
+struct Orbit : public Component<Orbit> {
+  float radius;
+  std::string entity;
+  Orbit(float r, const std::string& e) : radius(r), entity(e) {}
 };
 
 struct Projection : public Component<Projection> {
@@ -69,6 +68,198 @@ struct Projection : public Component<Projection> {
                           -1.0f, 1.0f)) {}
 };
 
+struct Pickable : boson::Component<Pickable> {
+  std::string entity;
+  Pickable(const std::string& name) : entity(name) {}
+};
+
+struct HillSphere  : public boson::Component<HillSphere> {
+  float mag;
+  std::string entity;
+  HillSphere(float r, std::string& name) : mag(r), entity(name) {}
+};
+
+
+// Helpers for orbital mechanics stuff
+namespace orbital {
+  float speedAtRadius(float r, float m) {
+    return sqrtf(Mass::unit * m/r);
+  }
+};
+
+namespace events {
+  struct Collision {};
+  struct LeftClick {};
+  struct RightClick {};
+}
+
+//------------------------------------------------------------------------------
+
+Entity& createIndicator(Entity& e);
+struct Selection {
+  static void clear(){
+    for (auto kv : selected) {
+      game_.remove(kv.second->name());
+    }
+    selected.clear();
+  }
+
+  static void select(Entity& e) {
+    auto item = selected.find(&e);
+    if (item == selected.end()) {
+      selected.emplace(std::make_pair(&e, &createIndicator(e)));
+    }
+  }
+  static void unselect(Entity& e) {
+    auto item = selected.find(&e);
+    if (item != selected.end()) {
+      game_.remove(item->second->name());
+      selected.erase(item);
+    }
+  }
+
+  static bool isSelected(Entity& e) {
+    auto item = selected.find(&e);
+    if (item != selected.end()) {
+      return true;
+    }
+    return false;
+  }
+
+  static std::map<Entity*, Entity*> selected;
+};
+std::map<Entity*, Entity*> Selection::selected;
+
+struct Picker {
+  glm::vec2 position;
+  bool      clicked;
+  Entity*   picked;
+
+  Picker(const glm::vec2& p) 
+    : position (p)
+    , clicked (false)
+    , picked(0) {
+  }
+
+  Entity* query() {
+    auto p = picked;
+    picked = 0;
+    return p;
+  }
+
+  void 
+  testPickable(Pickable* s, Position* p, Radius* r) {
+    static const float paddingFactor = 1.2f;  
+    // TODO abort system exec()
+    if (clicked == true) return;
+
+    auto displacement = p->pos - position;
+
+    auto& entity = game_.entity(s->entity);
+
+    if (paddingFactor*r->mag > glm::length(displacement)) { 
+      clicked = true;
+      picked = &entity;
+    } 
+  }
+
+  void 
+  testHillSphere(Position* p, HillSphere* r/*, EntityRef* e*/) {
+    // TODO abort system exec()
+    if (clicked == true) return;
+
+    auto displacement = p->pos - position;
+
+    auto& entity = game_.entity(r->entity);
+
+    if (r->mag > glm::length(displacement)) { 
+      clicked = true;
+      picked = &entity;
+    } 
+  }
+};
+
+struct Acceleration {
+  void reset(Position* pPos) {
+    pPos->acc  = glm::vec2(0.0f);
+    pPos->aacc = 0.0f;
+  }
+
+  //------------------------------------------------------------------------------
+
+  void update(Position* p1, Mass* m1) {
+    current_ = std::make_tuple(p1, m1);
+    game_.exec(*this, &Acceleration::update2);
+  }
+
+  //------------------------------------------------------------------------------
+
+  std::tuple<Position*, Mass*> current_;
+  void update2(Position* p2, Mass* m2) {
+    Position* p1; 
+    Mass*     m1; 
+    std::tie(p1, m1) = current_;
+    if (p1 == p2) return;
+
+    glm::vec2 diff = p2->pos - p1->pos;
+    float r = glm::length(diff);
+
+    // Clamp to sane values
+    if (r <  10.0f)          return;
+    if (r >  1500.0f)        return;
+    if (m1->mag < 0.00001f)  return;
+
+    const float mr2 = m1->mag*r*r;
+    glm::normalize(diff);
+
+    glm::vec2 acc  = diff *   Mass::unit*m1->mag*m2->mag / mr2;
+
+    p1->acc += acc;
+    if (p1->acc.x != p1->acc.x && p1->acc.y != p1->acc.y) {
+      Log::error("Acceleration is NaN after update");
+      p1->acc = glm::vec2(0.0f, 0.0f);
+    }
+  }
+};
+
+struct CollisionDetector {
+  void update(Handler<events::Collision>* c1, Position* p1, Radius* r1) {
+    current_ = std::make_tuple(c1, p1, r1);
+    game_.exec(*this, &CollisionDetector::update2);
+  }
+
+  //------------------------------------------------------------------------------
+
+  void update2(Handler<events::Collision>* c2, Position* p2, Radius* r2) {
+    static const float paddingFactor = 0.8f;  
+
+    Handler<events::Collision>* c1; 
+    Position* p1; 
+    Radius*   r1; 
+    std::tie(c1, p1, r1) = current_;
+    if (p1 == p2) return;
+
+    // Boundary is the minimum allowable distance 
+    // between colliding entities
+    auto boundary = r1->mag + r2->mag;
+
+    // Displacement is the vector pointing from this entity to the 
+    // other entity, with a length corresponding to the distance
+    auto displacement = p1->pos - p2->pos;
+
+    if (boundary * paddingFactor > glm::length(displacement)) { 
+      // Really, we only care about overlap in the collision
+      displacement = glm::normalize(displacement) * 
+                    (boundary - glm::length(displacement));
+      //Collision collision(displacement, boundary);
+      c2->handler(events::Collision());
+      //b2->onCollideWith(b1, &collision);
+    }
+  }
+
+  std::tuple<Handler<events::Collision>*, Position*, Radius*> current_;
+};
+
 //------------------------------------------------------------------------------
 
 void 
@@ -76,17 +267,11 @@ updateTime(Time* time) {
   float current = glfwGetTime();
   time->vel = current - time->pos;
   time->pos = current; 
-  //Log::debug("Tick ∂=%", time->vel);
 }
 
 //------------------------------------------------------------------------------
 
 void updatePosition(Time* time, Position* pos) {
-  // Clamp that shit down - what about lightspeed/relativity?
-  //if (glm::length(pos->vel) > pos->maxVel) {
-  //  pos->vel = glm::normalize(pos->vel) * pos->maxVel;
-  //}
-
   //TODO better integration (RK4?)
   pos->vel     += pos->acc     * float(time->vel);
   pos->avel    += pos->aacc    * float(time->vel);
@@ -94,7 +279,7 @@ void updatePosition(Time* time, Position* pos) {
   pos->pos     += pos->vel     * float(time->vel);
   pos->apos    += pos->avel    * float(time->vel);
 
-  // Clamp our angulars
+  // Wrap 
   if (pos->apos >  360.0f) {
     pos->apos = 0.0f;
   }
@@ -102,22 +287,11 @@ void updatePosition(Time* time, Position* pos) {
     pos->apos = 0.0f;
   }
 
-  if (pos->avel >  3.0f) {
-    pos->avel = 3.0f;
-  }
-  if (pos->avel < -3.0f) {
-    pos->avel = -3.0f;
-  }
-
-  if (pos->aacc >  0.004f) {
-    pos->aacc = 0.004f;
-  }
-  if (pos->aacc < -0.004f) {
-    pos->aacc = -0.004f;
-  }
-
-  // scalar distance - used for expiring pewpews (perhaps time is better?)
-  pos->distance += glm::length(pos->vel * float(time->vel));
+  // Clamp 
+  pos->avel = std::max(pos->avel,  3.0f);
+  pos->avel = std::min(pos->avel, -3.0f);
+  pos->aacc = std::max(pos->aacc,  0.004f);
+  pos->aacc = std::min(pos->aacc, -0.004f);
 }
 
 //------------------------------------------------------------------------------
@@ -171,91 +345,46 @@ struct Transformations {
 //------------------------------------------------------------------------------
 
 void
-target(Position* p, Target* t) {
-  static const float cruisingSpeed = 100.0f;
-  static const float engineThrust  = 1.0f;
-  
- // p->vel = t->position - p->pos;
-  auto distance     = t->position - p->pos;
-  auto velocityDiff = -p->vel; 
-  p->acc = distance + velocityDiff;
+target(Position* p, Mass* m, Orbit* o) {
+  auto target       = game_.entity(o->entity);
+  auto displacement = p->pos - target.get<Position>()->pos;
+
+  auto mass = m->mag + target.get<Mass>()->mag;
+  auto targetVelocity = orbital::speedAtRadius(o->radius, m->mag) 
+                      * glm::vec2(-displacement.y, displacement.x);
+  auto posError = o->radius - glm::length(displacement);
+  auto velError = targetVelocity - p->vel;
+
+  p->acc += velError + 3.0f * (posError * glm::normalize(displacement));
 
   if (glm::length(p->acc) > 0.0f) {
     glm::vec2 dir = glm::normalize(p->vel);
     p->apos = atan2(dir.y, dir.x) * 360.0f/6.28f + 90.0f;
   }
-  
+
+  if (glm::length(p->vel) > 1e13) {
+    throw std::runtime_error("runaway!");
+  }
+    
+/*
+  auto distance     = t->position - p->pos;
+  auto velocityDiff = -p->vel; 
+  p->acc += distance + velocityDiff;
+
+  if (glm::length(p->acc) > 0.0f) {
+    glm::vec2 dir = glm::normalize(p->vel);
+    p->apos = atan2(dir.y, dir.x) * 360.0f/6.28f + 90.0f;
+  }
 
   if (glm::length(p->vel) > 1e06f) {
     throw std::runtime_error("runaway rocket!");
   }
+*/
 }
 
 //------------------------------------------------------------------------------
 
-Entity& createIndicator(Entity& ship) {
-  auto& indicator = game_.entity();
-  Log::debug("Created indicator[%]", indicator.name());
-  indicator.add<Position>();
-  indicator.add<Layer>(3);
-  indicator.add<Radius>(ship.get<Radius>()->mag);
-  indicator.add<Transform>(ship.get<Transform>());
-  indicator.add<Color>(0.8, 0.9, 0.8, 0.8f);
-  indicator.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
-                           FragmentShader("assets/gpu/selected.fp"));
-  // TODO do we want Geometry, Textures and Programs to be components?
-  static const GLfloat pQuad[] = {1.0,  1.0, 1.0, 1.0,  1.0, -1.0, 1.0, 0.0,
-                                 -1.0, -1.0, 0.0, 0.0, -1.0,  1.0, 0.0, 1.0};
-  indicator.add<GlVbo>(16*sizeof(GLfloat), pQuad);
-  return indicator;
-}
-
-// some nasty global state
-glm::vec2 Selectable::position;
-bool      Selectable::clicked;
-
-void 
-onClick(Selectable* s, Position* p, Radius* r) {
-  // Displacement is the vector pointing from this entity to the 
-  // other entity, with a length corresponding to the distance
-  auto displacement = p->pos - Selectable::position;
-  Log::debug("testing @(%,%) for position (%,%) radius %", 
-             Selectable::position.x, Selectable::position.y,
-             p->pos.x, p->pos.y,
-             r->mag);
-
-  auto diff = Selectable::position - p->pos;
-  auto& ship = game_.entity(s->entity);
-
-  const float paddingFactor = 1.2f;  
-  if (paddingFactor*r->mag > glm::length(displacement)) { 
-    if (Selectable::clicked == true) return;
-    Selectable::clicked = true;
-
-    if (!s->selected) {
-      s->selected = true;
-      auto& indicator = createIndicator(ship);
-      s->indicator = indicator.name();
-    } else {
-      auto& indicator = game_.entity(s->indicator);
-      Log::debug("Removing indicator[%]", indicator.name());
-      game_.remove(s->indicator);
-      //indicator.clear();
-      s->indicator = "";
-      s->selected = false;
-    }
-  } else {
-    if (ship.get<Selectable>()->selected) {
-      gameQueue_.enqueue( [&] () {
-          ship.replace<Target>(Selectable::position);
-      });
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-
-void renderSolid(Layer* l, Transform* x, Color* c, GlProgram* p, GlVbo* v) {
+void renderSolid(Transform* x, Color* c, GlProgram* p, GlVbo* v) {
   auto matProjection = game_.entity("camera").get<Projection>()->matrix;
   auto matView       = game_.entity("camera").get<Transform>()->transform;
   p->program.use();
@@ -267,7 +396,7 @@ void renderSolid(Layer* l, Transform* x, Color* c, GlProgram* p, GlVbo* v) {
   p->program.execute  (0, 4);
 }
 
-void renderTextured(Layer* l, Transform* x, GlTexture* t, GlProgram* p, GlVbo* v) {
+void renderTextured(Transform* x, GlTexture* t, GlProgram* p, GlVbo* v) {
   p->program.use();
   p->program.uniform("mOrtho",      game_.entity("camera").get<Projection>()->matrix);
   p->program.uniform("mModel",      x->transform);
@@ -279,17 +408,38 @@ void renderTextured(Layer* l, Transform* x, GlTexture* t, GlProgram* p, GlVbo* v
 
 //------------------------------------------------------------------------------
 
+void removeFromGame(Entity& e) {
+  gameQueue_.enqueue( [&] () { game_.remove(e.name()); });
+}
+
+Entity& createIndicator(Entity& entity) {
+  auto& indicator = game_.entity();
+  Log::debug("Created indicator[%]", indicator.name());
+  indicator.add<Position>();
+  indicator.add<Radius>(entity.get<Radius>()->mag);
+  indicator.add<Transform>(entity.get<Transform>());
+  indicator.add<Color>(0.8, 0.9, 0.8, 0.8f);
+  indicator.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
+                           FragmentShader("assets/gpu/selected.fp"));
+  // TODO do we want Geometry, Textures and Programs to be components?
+  static const GLfloat pQuad[] = {1.0,  1.0, 1.0, 1.0,  1.0, -1.0, 1.0, 0.0,
+                                 -1.0, -1.0, 0.0, 0.0, -1.0,  1.0, 0.0, 1.0};
+  indicator.add<GlVbo>(16*sizeof(GLfloat), pQuad);
+  return indicator;
+}
+
+//------------------------------------------------------------------------------
+
 Entity& createShip(float x, float y, float r) {
   auto& ship = game_.entity();
   Log::debug("Created ship[%]", ship.name());
 
-  ship.add<Layer>(2);
   ship.add<Time>();
   ship.add<Position>();
   ship.get<Position>()->pos = glm::vec2(x, y);
-  ship.add<Target>(glm::vec2(x, y));
   ship.add<Radius>(r);
-  ship.add<Selectable>(false, ship.name());
+  ship.add<Mass>(r*r*r);
+  ship.add<Pickable>(ship.name());
   ship.add<Transform>();
   ship.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                       FragmentShader("assets/gpu/texture.fp"));
@@ -300,7 +450,6 @@ Entity& createShip(float x, float y, float r) {
                          -1.0, -1.0, 0.0, 0.0,
                          -1.0,  1.0, 0.0, 1.0};
   unsigned w_, h_;
-  //ship.add<GlVbo>(16*sizeof(GLfloat), pQuad);
   ship.add<GlVbo>(sizeof(quad), quad);
   ship.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/ship01.png",    w_, h_).get());
   return ship;
@@ -308,18 +457,24 @@ Entity& createShip(float x, float y, float r) {
 
 Entity& createRoid(float x, float y, float r) {
   auto& roid = game_.entity();
-  Log::debug("Created asteroid[%]", roid.name());
+  Log::debug("Created asteroid[%]: %", roid.name(), &roid);
 
-  roid.add<Layer>(1);
   roid.add<Time>();
   roid.add<Position>();
   roid.get<Position>()->pos = glm::vec2(x, y);
-  roid.add<Target>(glm::vec2(x, y));
   roid.add<Radius>(r);
-  roid.add<Selectable>(false, roid.name());
+  roid.add<HillSphere>(5.0f * r, roid.name());
+  roid.add<Mass>(r*r*r);
+  roid.add<Pickable>(roid.name());
   roid.add<Transform>();
   roid.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                       FragmentShader("assets/gpu/texture.fp"));
+
+  roid.add<Handler<events::Collision>>([&](events::Collision) {
+    //removeFromGame(roid);
+  });
+
+
   // TODO do we want Geometry, Textures and Programs to be components?
   //
   const GLfloat quad[] = {1.0,  1.0, 1.0, 1.0,
@@ -327,15 +482,9 @@ Entity& createRoid(float x, float y, float r) {
                          -1.0, -1.0, 0.0, 0.0,
                          -1.0,  1.0, 0.0, 1.0};
   unsigned w_, h_;
-  //roid.add<GlVbo>(16*sizeof(GLfloat), pQuad);
   roid.add<GlVbo>(sizeof(quad), quad);
   roid.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/astroid01.png",    w_, h_).get());
   return roid;
-}
-
-void
-testOrderTransform(Transform* x) {
-  Log::debug("transform depth: %", x->depth());
 }
 
 //------------------------------------------------------------------------------
@@ -344,13 +493,22 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
   : RoidRage::State(pMachine) 
 { 
   game_.registerIndex(updateTime);
-  game_.registerIndex(updatePosition);
+
+  game_.registerIndex(&Acceleration::reset);
   game_.registerIndex(target);
+  game_.registerIndex(&Acceleration::update);
+  game_.registerIndex(updatePosition);
+
   game_.registerIndex(&Transformations::transform1);
   game_.registerIndex(&Transformations::transform2);
   game_.registerIndex(renderSolid);
   game_.registerIndex(renderTextured);
-  game_.registerIndex(onClick);
+
+  game_.registerIndex(&Picker::testPickable);
+  game_.registerIndex(&Picker::testHillSphere);
+  game_.registerIndex(&CollisionDetector::update);
+
+  game_.registerEvent<events::Collision>();
 
   auto& cam = game_.entity("camera");
   cam.add<Projection>(Display::getWidth(), Display::getHeight());
@@ -359,14 +517,16 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
   cam.get<Position>()->pos = glm::vec2();
   cam.add<Transform>();
 
-  int maxRadius = 200;
-  for (unsigned i = 0; i < 2; i++) {
+  const unsigned ships = 3;
+  const unsigned roids = 2;
+  const int maxRadius = 500;
+  for (unsigned i = 0; i < ships; i++) {
     float roidX = (rand() % (2*maxRadius)) - maxRadius;
     float roidY = (rand() % (2*maxRadius)) - maxRadius;
     createShip(roidX, roidY, 20.0f);
   }
 
-  for (unsigned i = 0; i < 3; i++) {
+  for (unsigned i = 0; i < roids; i++) {
     float roidX = (rand() % (2*maxRadius)) - maxRadius;
     float roidY = (rand() % (2*maxRadius)) - maxRadius;
     createRoid(roidX, roidY, 40.0f + (rand() % 200));
@@ -374,7 +534,6 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
 
   timerReactor_.setPeriodic(std::chrono::seconds(5), [&] () {
     gameQueue_.enqueue( [&] () {
-      Log::debug("<Every 5 Seconds>");
     });
   });
 }
@@ -383,16 +542,22 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
 
 void 
 RoidRageGameTesting::onEvent(Tick tick) {
-  Transformations transforms;
+  static Acceleration       acceleration;
+  static Transformations    transforms;
+  static CollisionDetector collisions;
 
+  game_.exec(acceleration, &Acceleration::reset); 
+  game_.exec(target); 
+  //game_.exec(acceleration, &Acceleration::update); 
   game_.exec(updateTime); 
   game_.exec(updatePosition); 
-  game_.exec(target); 
 
   game_.exec(transforms, &Transformations::transform1); 
   transforms.exec();
 
   game_.exec(transforms, &Transformations::transform2); 
+
+  game_.exec(collisions, &CollisionDetector::update); 
 
   glClearColor(0.07f, 0.07f, 0.13f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
@@ -419,25 +584,34 @@ RoidRageGameTesting::onEvent(GlfwMouseMove mouse) {
 }
 
 //------------------------------------------------------------------------------
-
+// this is a hot mess
 void 
 RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
-  if (mouse.button == GLFW_MOUSE_BUTTON_LEFT && mouse.action == GLFW_PRESS) {
-    auto matProjection = game_.entity("camera").get<Projection>()->matrix;
-    auto matView       = game_.entity("camera").get<Transform>()->transform;
-    auto modelView     = matProjection * matView;
-    auto viewPort      = glm::vec4(0.0f, 0.0f, Display::getWidth(), Display::getHeight());
+  auto position = glm::vec2(mouse.x - Display::getWidth()/2.0f, 
+                            mouse.y - Display::getHeight()/2.0f);
+  Picker picker(position);
+  game_.exec(picker, &Picker::testPickable); 
 
-    auto screen = glm::vec3(mouse.x, mouse.y, 0.0f);
-    auto world  = glm::unProject(screen,
-                                 modelView,
-                                 matProjection,
-                                 viewPort);
-    //Selectable::position = glm::vec2(world.x, world.y);
-    Selectable::position = glm::vec2(mouse.x - Display::getWidth()/2.0f, mouse.y - Display::getHeight()/2.0f);
-    Selectable::clicked = false;
-    // TODO events?
-    game_.exec(onClick); 
+  if      (mouse.button == GLFW_MOUSE_BUTTON_LEFT && mouse.action == GLFW_PRESS) {
+    if (!mouse.mods & GLFW_MOD_SHIFT) {
+      Selection::clear(); 
+    }
+    if (auto e = picker.query()) {
+      Selection::select(*e);
+    }   
+  }
+
+  else if (mouse.button == GLFW_MOUSE_BUTTON_RIGHT && mouse.action == GLFW_PRESS) {
+    game_.exec(picker, &Picker::testHillSphere); 
+    for (auto kv : Selection::selected) {
+      auto s = kv.first;
+      auto h = picker.query();
+      if (h && h != s) {
+        float r = glm::length(position - h->get<Position>()->pos);
+        Log::debug("In hill sphere of entity[%]: r=%", h->name(), r);
+        s->addOrReplace<Orbit>(r, h->name());
+      }
+    }
   }
 }
 

@@ -73,8 +73,8 @@ struct Charge {
   float mag;
 };
 
-struct Mass {
-  static constexpr float unit = 3.6e-8;
+struct Mass : public boson::Component<Mass> {
+  static constexpr float unit = 1.0e-2f;
   Mass(float r) 
     : mag(r) {
   }
@@ -184,19 +184,6 @@ struct Fuel {
   Fuel(float m) 
     : mag(m) {
   }
-};
-
-struct Selectable : boson::Component<Selectable> {
-  bool        selected;
-  std::string indicator;
-  std::string entity;
-  Selectable(bool s, const std::string& name) 
-    : selected(s)
-    , entity(name) {
-  }
-
-  static glm::vec2 position;
-  static bool      clicked;
 };
 
 struct GlVbo : boson::Component<GlVbo> {

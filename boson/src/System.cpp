@@ -46,13 +46,7 @@ System::entity() {
   };
   std::string name(10,0);
   std::generate_n(name.begin(), name.length(), randchar);
-  auto e = entities_.find(name);
-  if (e == entities_.end()) {
-    auto e = entities_.emplace(name, Entity(*this, name));
-    return e.first->second;
-  }
-
-  return e->second;
+  return entity(name);
 }
 
 void
