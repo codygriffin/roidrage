@@ -29,7 +29,7 @@ using namespace roidrage;
 #include "OrthoCamera.h"
 #include "RoidRage.h"
 #include "RoidRageMenu.h"
-#include "RoidRageGame.h"
+#include "RoidRageGameTesting.h"
 
 #include <GLFW/glfw3.h>
 #include <stdlib.h>
@@ -104,6 +104,14 @@ static void pos_callback(GLFWwindow* window, double x, double y)
   pRoidRage->dispatch(mouse);
 }
 
+static void scroll_callback(GLFWwindow* window, double x, double y)
+{
+  GlfwMouseScroll mouse;
+  mouse.x = x;
+  mouse.y = y;
+  pRoidRage->dispatch(mouse);
+}
+
 int main(void)
 {
   GLFWwindow* window;
@@ -116,7 +124,7 @@ int main(void)
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  window = glfwCreateWindow(640, 480, "RoidRage: ALPHA", NULL, NULL);
+  window = glfwCreateWindow(1920, 1080, "RoidRage: ALPHA", NULL, NULL);
   int width, height;
   glfwGetFramebufferSize(window, &width, &height);
 
@@ -130,12 +138,13 @@ int main(void)
   glfwSetKeyCallback(window, key_callback);
   glfwSetMouseButtonCallback(window, mouse_callback);
   glfwSetCursorPosCallback(window, pos_callback);
+  glfwSetScrollCallback(window, scroll_callback);
 
   ratio = 2.0f;
 
   Log::info("********************************************************************************");
   pRoidRage = new RoidRageMachine(width, height, ratio);
-  pRoidRage->transition<RoidRageMenu>(true);
+  pRoidRage->transition<RoidRageGameTesting>();
   //pRoidRage->transition<RoidRageGame>(true);
   Log::info("RoidRage Initialized (w=%, h=%, d=%)", width, height, ratio);
   Log::info("********************************************************************************");

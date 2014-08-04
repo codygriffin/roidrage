@@ -93,6 +93,7 @@ struct AndroidBack {};
 struct GlfwKey         { int key; int scancode; int action; int mods; };
 struct GlfwMouseButton { int button; int action; int mods; float x; float y;};
 struct GlfwMouseMove   { double x; double y; };
+struct GlfwMouseScroll { double x; double y; };
 
 //------------------------------------------------------------------------------
 
@@ -103,7 +104,8 @@ typedef corvid::Machine<
   AndroidBack,
   GlfwKey,
   GlfwMouseButton,
-  GlfwMouseMove
+  GlfwMouseMove,
+  GlfwMouseScroll
 > RoidRage;
 
 struct RoidRageMachine : public RoidRage

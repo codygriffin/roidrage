@@ -58,13 +58,14 @@ struct Orbit : public Component<Orbit> {
   Orbit(float r, const std::string& e) : radius(r), entity(e) {}
 };
 
+static float zoom = 1.0f;
 struct Projection : public Component<Projection> {
   glm::mat4 matrix;
-  Projection(float width, float height) 
-    : matrix (glm::ortho((-width/2.0f), 
-                         (width/2.0f), 
-                         (height/2.0f), 
-                         (-height/2.0f), 
+  Projection(float width, float height, float zoom = 1.0f) 
+    : matrix (glm::ortho((-width/2.0f / zoom), 
+                         (width/2.0f / zoom), 
+                         (height/2.0f / zoom), 
+                         (-height/2.0f / zoom), 
                           -1.0f, 1.0f)) {}
 };
 
@@ -149,7 +150,7 @@ struct Picker {
 
   void 
   testPickable(Pickable* s, Position* p, Radius* r) {
-    static const float paddingFactor = 1.2f;  
+    static const float paddingFactor = 2.2f;  
     // TODO abort system exec()
     if (clicked == true) return;
 
@@ -288,10 +289,10 @@ void updatePosition(Time* time, Position* pos) {
   }
 
   // Clamp 
-  pos->avel = std::max(pos->avel,  3.0f);
-  pos->avel = std::min(pos->avel, -3.0f);
-  pos->aacc = std::max(pos->aacc,  0.004f);
-  pos->aacc = std::min(pos->aacc, -0.004f);
+  pos->avel = std::min(pos->avel,  3.0f);
+  pos->avel = std::max(pos->avel, -3.0f);
+  pos->aacc = std::min(pos->aacc,  0.004f);
+  pos->aacc = std::max(pos->aacc, -0.004f);
 }
 
 //------------------------------------------------------------------------------
@@ -350,12 +351,20 @@ target(Position* p, Mass* m, Orbit* o) {
   auto displacement = p->pos - target.get<Position>()->pos;
 
   auto mass = m->mag + target.get<Mass>()->mag;
-  auto targetVelocity = orbital::speedAtRadius(o->radius, m->mag) 
-                      * glm::vec2(-displacement.y, displacement.x);
-  auto posError = o->radius - glm::length(displacement);
-  auto velError = targetVelocity - p->vel;
+  auto targetSpeed = orbital::speedAtRadius(o->radius, mass);
+  auto currentSpeed = glm::length(p->vel);
+  auto targetVelocity = targetSpeed * glm::vec2(-displacement.y, displacement.x);
 
-  p->acc += velError + 3.0f * (posError * glm::normalize(displacement));
+  auto posError = o->radius      - glm::length(displacement);
+  auto velError = targetVelocity - p->vel;
+  auto dir = glm::normalize(displacement);
+
+  p->acc += 1.0f* dir * posError;
+  p->acc += 0.2f* velError;
+
+  if (currentSpeed > targetSpeed) {
+    p->vel = glm::normalize(p->vel) * targetSpeed;
+  }
 
   if (glm::length(p->acc) > 0.0f) {
     glm::vec2 dir = glm::normalize(p->vel);
@@ -389,7 +398,7 @@ void renderSolid(Transform* x, Color* c, GlProgram* p, GlVbo* v) {
   auto matView       = game_.entity("camera").get<Transform>()->transform;
   p->program.use();
   p->program.uniform("mOrtho",      matProjection);
-  p->program.uniform("mModel",      x->transform);
+  p->program.uniform("mModel",      matView * x->transform);
   p->program.uniform("vColor",      c->color);
   p->program.attribute("vPosition", v->vbo, 2, 4*sizeof(float), 0);
   p->program.attribute("vTexture",  v->vbo, 2, 4*sizeof(float), 2*sizeof(float));
@@ -397,9 +406,11 @@ void renderSolid(Transform* x, Color* c, GlProgram* p, GlVbo* v) {
 }
 
 void renderTextured(Transform* x, GlTexture* t, GlProgram* p, GlVbo* v) {
+  auto matProjection = game_.entity("camera").get<Projection>()->matrix;
+  auto matView       = game_.entity("camera").get<Transform>()->transform;
   p->program.use();
-  p->program.uniform("mOrtho",      game_.entity("camera").get<Projection>()->matrix);
-  p->program.uniform("mModel",      x->transform);
+  p->program.uniform("mOrtho",      matProjection);
+  p->program.uniform("mModel",      matView * x->transform);
   p->program.uniform("uTexture",    t->texture);
   p->program.attribute("vPosition", v->vbo, 2, 4*sizeof(float), 0);
   p->program.attribute("vTexture",  v->vbo, 2, 4*sizeof(float), 2*sizeof(float));
@@ -455,6 +466,31 @@ Entity& createShip(float x, float y, float r) {
   return ship;
 }
 
+Entity& createBoid(float x, float y, float r) {
+  auto& ship = game_.entity();
+  Log::debug("Created ship[%]", ship.name());
+
+  ship.add<Time>();
+  ship.add<Position>();
+  ship.get<Position>()->pos = glm::vec2(x, y);
+  ship.add<Radius>(r);
+  ship.add<Mass>(r*r*r);
+  ship.add<Pickable>(ship.name());
+  ship.add<Transform>();
+  ship.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
+                      FragmentShader("assets/gpu/texture.fp"));
+  // TODO do we want Geometry, Textures and Programs to be components?
+  //
+  const GLfloat quad[] = {1.0,  1.0, 1.0, 1.0,
+                          1.0, -1.0, 1.0, 0.0,
+                         -1.0, -1.0, 0.0, 0.0,
+                         -1.0,  1.0, 0.0, 1.0};
+  unsigned w_, h_;
+  ship.add<GlVbo>(sizeof(quad), quad);
+  ship.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/boid01.png",    w_, h_).get());
+  return ship;
+}
+
 Entity& createRoid(float x, float y, float r) {
   auto& roid = game_.entity();
   Log::debug("Created asteroid[%]: %", roid.name(), &roid);
@@ -465,7 +501,6 @@ Entity& createRoid(float x, float y, float r) {
   roid.add<Radius>(r);
   roid.add<HillSphere>(5.0f * r, roid.name());
   roid.add<Mass>(r*r*r);
-  roid.add<Pickable>(roid.name());
   roid.add<Transform>();
   roid.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                       FragmentShader("assets/gpu/texture.fp"));
@@ -486,6 +521,34 @@ Entity& createRoid(float x, float y, float r) {
   roid.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/astroid01.png",    w_, h_).get());
   return roid;
 }
+
+Entity& createGasPlanet(float x, float y, float r) {
+  auto& roid = game_.entity();
+  Log::debug("Created gas[%]: %", roid.name(), &roid);
+
+  roid.add<Time>();
+  roid.add<Position>();
+  roid.get<Position>()->pos = glm::vec2(x, y);
+  roid.add<Radius>(r);
+  roid.add<HillSphere>(2.0f * r, roid.name());
+  roid.add<Mass>(r*r*r);
+  roid.add<Transform>();
+  roid.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
+                      FragmentShader("assets/gpu/texture.fp"));
+
+
+  // TODO do we want Geometry, Textures and Programs to be components?
+  //
+  const GLfloat quad[] = {1.0,  1.0, 1.0, 1.0,
+                          1.0, -1.0, 1.0, 0.0,
+                         -1.0, -1.0, 0.0, 0.0,
+                         -1.0,  1.0, 0.0, 1.0};
+  unsigned w_, h_;
+  roid.add<GlVbo>(sizeof(quad), quad);
+  roid.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/gas01.png",    w_, h_).get());
+  return roid;
+}
+
 
 //------------------------------------------------------------------------------
 
@@ -511,25 +574,27 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
   game_.registerEvent<events::Collision>();
 
   auto& cam = game_.entity("camera");
-  cam.add<Projection>(Display::getWidth(), Display::getHeight());
+  cam.add<Projection>(Display::getWidth(), Display::getHeight(), 1.0f);
   cam.add<Time>();
   cam.add<Position>();
   cam.get<Position>()->pos = glm::vec2();
   cam.add<Transform>();
 
-  const unsigned ships = 3;
-  const unsigned roids = 2;
-  const int maxRadius = 500;
-  for (unsigned i = 0; i < ships; i++) {
-    float roidX = (rand() % (2*maxRadius)) - maxRadius;
-    float roidY = (rand() % (2*maxRadius)) - maxRadius;
-    createShip(roidX, roidY, 20.0f);
+  auto& gas = createGasPlanet(0.0f, 0.0f, 500.0f);
+
+  for (unsigned i = 0; i < 5; i++) {
+    auto& ship = createShip(100.0f + rand() % 100, rand() % 100, 20.0f);
+    ship.add<Orbit>(600.0f + i*30.0f, gas.name());
   }
 
-  for (unsigned i = 0; i < roids; i++) {
-    float roidX = (rand() % (2*maxRadius)) - maxRadius;
-    float roidY = (rand() % (2*maxRadius)) - maxRadius;
-    createRoid(roidX, roidY, 40.0f + (rand() % 200));
+  for (unsigned i = 0; i < 5; i++) {
+    auto& ship = createBoid(100.0f + i*10.0f, i*10.0f, 20.0f);
+    ship.add<Orbit>(600.0f + rand() % 100, gas.name());
+  }
+
+  for (unsigned i = 0; i < 5; i++) {
+    auto& roid = createRoid(100.0f - (rand() % 200), 100.0f - (rand() % 200), 100.0f + rand() % 100);
+    roid.add<Orbit>(1000.0f + rand() % 1000, gas.name());
   }
 
   timerReactor_.setPeriodic(std::chrono::seconds(5), [&] () {
@@ -573,7 +638,44 @@ RoidRageGameTesting::onEvent(Tick tick) {
 // TODO definitely a better way for this - perhaps a map of keys and lambdas?
 void 
 RoidRageGameTesting::onEvent(GlfwKey key) {
+  float scrollSpeed = 300.0f / zoom;
+
+  auto& cam = game_.entity("camera");
+
   switch (key.key) {
+    case GLFW_KEY_W:
+      if (key.action == GLFW_PRESS) {
+        cam.get<Position>()->vel += glm::vec2(0.0f, scrollSpeed);
+      }
+      if (key.action == GLFW_RELEASE) {
+        cam.get<Position>()->vel -= glm::vec2(0.0f, scrollSpeed);
+      }
+    break;
+    case GLFW_KEY_A:
+      if (key.action == GLFW_PRESS) {
+        cam.get<Position>()->vel += glm::vec2(scrollSpeed, 0.0f);
+      }
+      if (key.action == GLFW_RELEASE) {
+        cam.get<Position>()->vel -= glm::vec2(scrollSpeed, 0.0f);
+      }
+    break;
+    case GLFW_KEY_S:
+      if (key.action == GLFW_PRESS) {
+        cam.get<Position>()->vel += glm::vec2(0.0f, -scrollSpeed);
+      }
+      if (key.action == GLFW_RELEASE) {
+        cam.get<Position>()->vel -= glm::vec2(0.0f, -scrollSpeed);
+      }
+    break;
+    case GLFW_KEY_D:
+      if (key.action == GLFW_PRESS) {
+        cam.get<Position>()->vel += glm::vec2(-scrollSpeed, 0.0f);
+      }
+      if (key.action == GLFW_RELEASE) {
+        cam.get<Position>()->vel -= glm::vec2(-scrollSpeed, 0.0f);
+      }
+    break;
+  
   }
 }
 
@@ -584,11 +686,27 @@ RoidRageGameTesting::onEvent(GlfwMouseMove mouse) {
 }
 
 //------------------------------------------------------------------------------
+
+void 
+RoidRageGameTesting::onEvent(GlfwMouseScroll mouse) {
+  static float zoomSensitivity = 0.1f;
+  zoom += mouse.y * zoomSensitivity;
+  zoom = std::min(zoom,  5.0f);
+  zoom = std::max(zoom,  0.1f);
+  auto& cam = game_.entity("camera");
+  cam.replace<Projection>(Display::getWidth(), Display::getHeight(), zoom); 
+  game_.entity("camera").get<Position>()->vel = glm::vec2(0.0f, 0.0f);
+}
+
+//------------------------------------------------------------------------------
 // this is a hot mess
 void 
 RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
+  auto& cam = game_.entity("camera");
   auto position = glm::vec2(mouse.x - Display::getWidth()/2.0f, 
                             mouse.y - Display::getHeight()/2.0f);
+  position /= zoom;
+  position -= cam.get<Position>()->pos;
   Picker picker(position);
   game_.exec(picker, &Picker::testPickable); 
 

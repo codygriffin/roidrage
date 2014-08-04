@@ -43,6 +43,7 @@ protected:
   void onEvent(GlfwKey);
   void onEvent(GlfwMouseButton);
   void onEvent(GlfwMouseMove);
+  void onEvent(GlfwMouseScroll);
 
 private:
 
