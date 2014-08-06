@@ -54,8 +54,12 @@ struct Target : public Component<Target> {
 
 struct Orbit : public Component<Orbit> {
   float radius;
+  glm::vec2   startingPoint;
+  bool        transfer; 
   std::string entity;
-  Orbit(float r, const std::string& e) : radius(r), entity(e) {}
+  std::string body;
+  Orbit(float r, const glm::vec2& s, const std::string& e, const std::string& b) 
+    : radius(r), startingPoint(s), entity(e), body(b), transfer(true) {}
 };
 
 static float zoom = 1.0f;
@@ -346,49 +350,43 @@ struct Transformations {
 //------------------------------------------------------------------------------
 
 void
-target(Position* p, Mass* m, Orbit* o) {
-  auto target       = game_.entity(o->entity);
-  auto displacement = p->pos - target.get<Position>()->pos;
-
-  auto mass = m->mag + target.get<Mass>()->mag;
-  auto targetSpeed = orbital::speedAtRadius(o->radius, mass);
-  auto currentSpeed = glm::length(p->vel);
-  auto targetVelocity = targetSpeed * glm::vec2(-displacement.y, displacement.x);
-
-  auto posError = o->radius      - glm::length(displacement);
-  auto velError = targetVelocity - p->vel;
+orbit(Position* p, Mass* m, Orbit* o) {
+  auto body         = game_.entity(o->body);
+  auto displacement = p->pos - body.get<Position>()->pos;
   auto dir = glm::normalize(displacement);
 
-  p->acc += 1.0f* dir * posError;
-  p->acc += 0.2f* velError;
+  o->radius = std::max(o->radius, body.get<Radius>()->mag*1.1f);
 
-  if (currentSpeed > targetSpeed) {
-    p->vel = glm::normalize(p->vel) * targetSpeed;
+  auto mass = m->mag + body.get<Mass>()->mag;
+  auto targetSpeed = orbital::speedAtRadius(o->radius, mass);
+  auto currentSpeed = glm::length(p->vel);
+  auto targetVelocity = targetSpeed * glm::vec2(-displacement.y, displacement.x) + body.get<Position>()->vel;
+  auto posError = o->radius * dir - displacement;
+  auto velError = targetVelocity  - p->vel;
+
+  if (!o->transfer) {
+    p->pos += posError;
+    p->acc = glm::vec2();
+    p->vel = targetVelocity;
+    dir    = glm::normalize(p->vel);
+  } else {
+
+    p->acc += 0.6f  * velError; 
+    p->vel += 0.04f * posError;
+
+    dir    = glm::normalize(p->acc);
+    Log::debug("transfer %", glm::length(posError));
+    if (glm::length(posError) < (0.01f * o->radius)) {
+      Log::debug("ending transfer");
+      o->transfer = false;
+    }
   }
 
-  if (glm::length(p->acc) > 0.0f) {
-    glm::vec2 dir = glm::normalize(p->vel);
-    p->apos = atan2(dir.y, dir.x) * 360.0f/6.28f + 90.0f;
-  }
+  p->apos = atan2(dir.y, dir.x) * 360.0f/6.28f + 90.0f;
 
   if (glm::length(p->vel) > 1e13) {
     throw std::runtime_error("runaway!");
   }
-    
-/*
-  auto distance     = t->position - p->pos;
-  auto velocityDiff = -p->vel; 
-  p->acc += distance + velocityDiff;
-
-  if (glm::length(p->acc) > 0.0f) {
-    glm::vec2 dir = glm::normalize(p->vel);
-    p->apos = atan2(dir.y, dir.x) * 360.0f/6.28f + 90.0f;
-  }
-
-  if (glm::length(p->vel) > 1e06f) {
-    throw std::runtime_error("runaway rocket!");
-  }
-*/
 }
 
 //------------------------------------------------------------------------------
@@ -558,7 +556,7 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
   game_.registerIndex(updateTime);
 
   game_.registerIndex(&Acceleration::reset);
-  game_.registerIndex(target);
+  game_.registerIndex(orbit);
   game_.registerIndex(&Acceleration::update);
   game_.registerIndex(updatePosition);
 
@@ -584,17 +582,17 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
 
   for (unsigned i = 0; i < 5; i++) {
     auto& ship = createShip(100.0f + rand() % 100, rand() % 100, 20.0f);
-    ship.add<Orbit>(600.0f + i*30.0f, gas.name());
+    ship.add<Orbit>(600.0f + i*30.0f, ship.get<Position>()->pos, ship.name(), gas.name());
   }
 
   for (unsigned i = 0; i < 5; i++) {
     auto& ship = createBoid(100.0f + i*10.0f, i*10.0f, 20.0f);
-    ship.add<Orbit>(600.0f + rand() % 100, gas.name());
+    ship.add<Orbit>(600.0f + rand() % 100, ship.get<Position>()->pos, ship.name(), gas.name());
   }
 
   for (unsigned i = 0; i < 5; i++) {
     auto& roid = createRoid(100.0f - (rand() % 200), 100.0f - (rand() % 200), 100.0f + rand() % 100);
-    roid.add<Orbit>(1000.0f + rand() % 1000, gas.name());
+    roid.add<Orbit>(1000.0f + rand() % 1000, roid.get<Position>()->pos, roid.name(), gas.name());
   }
 
   timerReactor_.setPeriodic(std::chrono::seconds(5), [&] () {
@@ -612,7 +610,10 @@ RoidRageGameTesting::onEvent(Tick tick) {
   static CollisionDetector collisions;
 
   game_.exec(acceleration, &Acceleration::reset); 
-  game_.exec(target); 
+
+  // Begin FSM stuff
+  game_.exec(orbit); 
+
   //game_.exec(acceleration, &Acceleration::update); 
   game_.exec(updateTime); 
   game_.exec(updatePosition); 
@@ -727,7 +728,7 @@ RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
       if (h && h != s) {
         float r = glm::length(position - h->get<Position>()->pos);
         Log::debug("In hill sphere of entity[%]: r=%", h->name(), r);
-        s->addOrReplace<Orbit>(r, h->name());
+        s->addOrReplace<Orbit>(r, s->get<Position>()->pos, s->name(), h->name());
       }
     }
   }
