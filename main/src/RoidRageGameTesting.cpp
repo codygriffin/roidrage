@@ -23,6 +23,7 @@
 
 #include "Log.h"
 
+#include <iterator>
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
@@ -130,56 +131,70 @@ struct Selection {
     }
     return false;
   }
+  
+  static void toggle(Entity& e) {
+    if (isSelected(e)) {
+      unselect(e);
+    } else {
+      select(e);
+    } 
+  }
 
   static std::map<Entity*, Entity*> selected;
 };
 std::map<Entity*, Entity*> Selection::selected;
 
 struct Picker {
-  glm::vec2 position;
-  bool      clicked;
-  Entity*   picked;
+  glm::vec2           position;
+  std::list<Entity*>  picked;
+  std::list<Entity*>::iterator current;
 
   Picker(const glm::vec2& p) 
     : position (p)
-    , clicked (false)
-    , picked(0) {
+    , picked() 
+    , current(picked.end()) {
   }
 
-  Entity* query() {
-    auto p = picked;
-    picked = 0;
-    return p;
+  std::list<Entity*>& query() {
+    return picked;
+  }
+
+  Entity* cycle() {
+    if (current != picked.end()) {
+      auto e = *current;
+      current++;
+      return e;
+    } else {
+      current = picked.begin();
+      return *current;
+    }
+  }
+
+  void reset() {
+    picked.clear();
   }
 
   void 
   testPickable(Pickable* s, Position* p, Radius* r) {
-    static const float paddingFactor = 2.2f;  
-    // TODO abort system exec()
-    if (clicked == true) return;
+    static const float paddingFactor = 3.0f;  
 
     auto displacement = p->pos - position;
-
-    auto& entity = game_.entity(s->entity);
+    auto& entity      = game_.entity(s->entity);
 
     if (paddingFactor*r->mag > glm::length(displacement)) { 
-      clicked = true;
-      picked = &entity;
+      picked.push_back(&entity);
     } 
   }
 
   void 
-  testHillSphere(Position* p, HillSphere* r/*, EntityRef* e*/) {
+  testHillSphere(Position* p, HillSphere* r) {
     // TODO abort system exec()
-    if (clicked == true) return;
-
     auto displacement = p->pos - position;
 
     auto& entity = game_.entity(r->entity);
 
     if (r->mag > glm::length(displacement)) { 
-      clicked = true;
-      picked = &entity;
+      picked.push_back(&entity);
     } 
   }
 };
@@ -354,8 +369,9 @@ orbit(Position* p, Mass* m, Orbit* o) {
   auto body         = game_.entity(o->body);
   auto displacement = p->pos - body.get<Position>()->pos;
   auto dir = glm::normalize(displacement);
+  auto r  =  glm::length(displacement);
 
-  o->radius = std::max(o->radius, body.get<Radius>()->mag*1.1f);
+  o->radius = std::max(o->radius, body.get<Radius>()->mag*1.2f);
 
   auto mass = m->mag + body.get<Mass>()->mag;
   auto targetSpeed = orbital::speedAtRadius(o->radius, mass);
@@ -364,15 +380,15 @@ orbit(Position* p, Mass* m, Orbit* o) {
   auto posError = o->radius * dir - displacement;
   auto velError = targetVelocity  - p->vel;
 
+  p->acc += dir * Mass::unit*m->mag*body.get<Mass>()->mag / (m->mag*r*r);
+
   if (!o->transfer) {
     p->pos += posError;
-    p->acc = glm::vec2();
     p->vel = targetVelocity;
     dir    = glm::normalize(p->vel);
   } else {
-
-    p->acc += 0.6f  * velError; 
-    p->vel += 0.04f * posError;
+    p->acc += 0.8f  * velError; 
+    p->vel += 0.01f * posError;
 
     dir    = glm::normalize(p->acc);
     Log::debug("transfer %", glm::length(posError));
@@ -425,9 +441,9 @@ Entity& createIndicator(Entity& entity) {
   auto& indicator = game_.entity();
   Log::debug("Created indicator[%]", indicator.name());
   indicator.add<Position>();
-  indicator.add<Radius>(entity.get<Radius>()->mag);
+  indicator.add<Radius>(entity.get<Radius>()->mag*1.5f);
   indicator.add<Transform>(entity.get<Transform>());
-  indicator.add<Color>(0.8, 0.9, 0.8, 0.8f);
+  indicator.add<Color>(0.0, 0.9, 0.8, 0.8f);
   indicator.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                            FragmentShader("assets/gpu/selected.fp"));
   // TODO do we want Geometry, Textures and Programs to be components?
@@ -498,6 +514,7 @@ Entity& createRoid(float x, float y, float r) {
   roid.get<Position>()->pos = glm::vec2(x, y);
   roid.add<Radius>(r);
   roid.add<HillSphere>(5.0f * r, roid.name());
+  roid.add<Pickable>(roid.name());
   roid.add<Mass>(r*r*r);
   roid.add<Transform>();
   roid.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
@@ -528,7 +545,8 @@ Entity& createGasPlanet(float x, float y, float r) {
   roid.add<Position>();
   roid.get<Position>()->pos = glm::vec2(x, y);
   roid.add<Radius>(r);
-  roid.add<HillSphere>(2.0f * r, roid.name());
+  roid.add<HillSphere>(1000.0f * r, roid.name());
+  roid.add<Pickable>(roid.name());
   roid.add<Mass>(r*r*r);
   roid.add<Transform>();
   roid.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
@@ -628,8 +646,8 @@ RoidRageGameTesting::onEvent(Tick tick) {
   glClearColor(0.07f, 0.07f, 0.13f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  game_.exec(renderTextured); 
   game_.exec(renderSolid); 
+  game_.exec(renderTextured); 
 
   // execute actions 'scheduled' for this tick
   while (gameQueue_.work());
@@ -712,26 +730,43 @@ RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
   game_.exec(picker, &Picker::testPickable); 
 
   if      (mouse.button == GLFW_MOUSE_BUTTON_LEFT && mouse.action == GLFW_PRESS) {
+    auto candidates = picker.query();
+
     if (!mouse.mods & GLFW_MOD_SHIFT) {
       Selection::clear(); 
     }
-    if (auto e = picker.query()) {
-      Selection::select(*e);
+
+    candidates.sort([](Entity* a, Entity* b) -> bool {
+      return a->get<Radius>()->mag < b->get<Radius>()->mag;
+    });
+
+    if (!candidates.empty()) {
+    //for (auto e : candidates) {
+      auto e = candidates.front();
+      Selection::toggle(*e);
     }   
   }
 
   else if (mouse.button == GLFW_MOUSE_BUTTON_RIGHT && mouse.action == GLFW_PRESS) {
     game_.exec(picker, &Picker::testHillSphere); 
+    auto candidates = picker.query();
+    candidates.sort([](Entity* a, Entity* b) -> bool {
+      return a->get<HillSphere>()->mag < b->get<HillSphere>()->mag;
+    });
     for (auto kv : Selection::selected) {
       auto s = kv.first;
-      auto h = picker.query();
-      if (h && h != s) {
+      //for (auto h : candidates) {
+      auto h = candidates.front();
+      if (!candidates.empty() && h != s) {
         float r = glm::length(position - h->get<Position>()->pos);
         Log::debug("In hill sphere of entity[%]: r=%", h->name(), r);
-        s->addOrReplace<Orbit>(r, s->get<Position>()->pos, s->name(), h->name());
+        if(glm::length(s->get<Position>()->vel) > 0.0f) {
+          s->addOrReplace<Orbit>(r, s->get<Position>()->pos, s->name(), h->name());
+        }
       }
     }
   }
+  picker.reset();
 }
 
 //------------------------------------------------------------------------------

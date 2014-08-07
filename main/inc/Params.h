@@ -74,7 +74,7 @@ struct Charge {
 };
 
 struct Mass : public boson::Component<Mass> {
-  static constexpr float unit = 1.0e-6f;
+  static constexpr float unit = 5.0e-7f;
   Mass(float r) 
     : mag(r) {
   }
