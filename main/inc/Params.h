@@ -58,6 +58,18 @@ struct Position : public boson::Component<Position> {
   static constexpr float maxDistance =  8000.0f;
 };
 
+struct Orientation : public boson::Component<Orientation> {
+  float     apos;
+  float     avel;
+  float     aacc;
+
+  Orientation() 
+  : apos(0.0f)
+  , avel(0.0f)
+  , aacc(0.0f)
+  {}
+};
+
 struct Color  : public boson::Component<Color> {
   Color (float r=0.0f, float g=1.0f, float b=0.0f, float a=0.5f) 
     : color(r,g,b,a) {
@@ -227,6 +239,12 @@ struct Transform : boson::Component<Transform> {
   bool operator<(const Transform& rhs) const {
     return depth() > rhs.depth();
   }
+};
+
+template <typename T>
+struct Track : boson::Component<Track<T>> {
+  T* value;
+  Track(T* v = 0) : value(v) {}
 };
 
 //------------------------------------------------------------------------------

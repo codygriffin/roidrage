@@ -41,6 +41,9 @@ struct Entity {
   template <typename T, typename...Args>
   void addOrReplace(Args...args);
 
+  template <typename T> 
+  void rem();
+
   void rem(const std::type_index& i);
 
   template <typename T>

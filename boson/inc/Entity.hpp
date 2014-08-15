@@ -132,6 +132,12 @@ Entity::get() {
   throw std::runtime_error("Cannot get non-existent component");
 }
 
+template <typename T>
+void 
+Entity::rem() {
+  rem(std::type_index(typeid(T)));
+}
+
 //------------------------------------------------------------------------------
 
 }
