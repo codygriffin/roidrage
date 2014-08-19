@@ -26,6 +26,7 @@
 #include <iterator>
 #include <algorithm>
 #include <sstream>
+#include <cmath>
 #include <iomanip>
 #include <map>
 
@@ -54,13 +55,16 @@ struct Target : public Component<Target> {
 };
 
 struct Orbit : public Component<Orbit> {
-  float radius;
-  glm::vec2   startingPoint;
-  bool        transfer; 
+  glm::vec2   periapsis;
+  float       eccentricity;
+  float       phase;
+
   std::string entity;
-  std::string body;
-  Orbit(float r, const glm::vec2& s, const std::string& e, const std::string& b) 
-    : radius(r), startingPoint(s), entity(e), body(b), transfer(true) {}
+  std::string focus;
+  bool        verbose;
+
+  Orbit(const glm::vec2& p, float ecc, float phs, const std::string& e, const std::string& b, bool v = false) 
+    : periapsis(p), eccentricity(ecc), phase(phs), entity(e), focus(b), verbose(v) {}
 };
 
 static float zoom = 0.1f;
@@ -83,14 +87,6 @@ struct HillSphere  : public boson::Component<HillSphere> {
   float mag;
   std::string entity;
   HillSphere(float r, std::string& name) : mag(r), entity(name) {}
-};
-
-
-// Helpers for orbital mechanics stuff
-namespace orbital {
-  float speedAtRadius(float r, float m) {
-    return sqrtf(Mass::unit * m/r);
-  }
 };
 
 namespace events {
@@ -236,9 +232,14 @@ struct Picker {
 
     auto& entity = game_.entity(r->entity);
 
+    Log::debug("testing if p: (%,%) is in %'s hill sphere c: (%,%) r: %", 
+               start.x, start.y, entity.name(), p->pos.x, p->pos.y, r->mag);
     if (r->mag > glm::length(displacement)) { 
+      Log::debug("yep");
       picked.push_back(&entity);
-    } 
+    } else {
+      Log::debug("nope");
+    }
   }
 };
 
@@ -336,8 +337,21 @@ updateTime(Time* time) {
 
 void updatePosition(Time* time, Position* pos) {
   //TODO better integration (RK4?)
+  if (std::isnan(pos->acc.x) || std::isnan(pos->acc.y)) {
+    throw std::runtime_error("NaN acceleration!");
+  }
+
   pos->vel     += pos->acc     * float(time->vel);
+
+  if (std::isnan(pos->vel.x) || std::isnan(pos->vel.y)) {
+    throw std::runtime_error("NaN velocity!");
+  }
+
   pos->pos     += pos->vel     * float(time->vel);
+
+  if (std::isnan(pos->pos.x) || std::isnan(pos->pos.y)) {
+    throw std::runtime_error("NaN position!");
+  }
 }
 
 void track(Track<Position>* t, Position* p) {
@@ -422,35 +436,44 @@ struct Transformations {
 
 void
 orbit(Position* p, Mass* m, Orbit* o, Orientation *b) {
-  auto body         = game_.entity(o->body);
-  auto displacement = p->pos - body.get<Position>()->pos;
-  auto dir = glm::normalize(displacement);
-  auto r  =  glm::length(displacement);
+  auto focus = game_.entity(o->focus);
+  auto d     = p->pos - focus.get<Position>()->pos;
+  auto dir   = glm::normalize(d);
+  auto r     = glm::length(d);
+  auto e     = o->eccentricity;
+  auto ra = glm::length(o->periapsis) * (1.0f + e)/(1.0f - e);
+  auto rp    = o->periapsis + focus.get<Position>()->pos;
 
-  o->radius = std::max(o->radius, body.get<Radius>()->mag*1.2f);
 
-  auto mass = m->mag + body.get<Mass>()->mag;
-  auto targetSpeed = orbital::speedAtRadius(o->radius, mass);
-  auto currentSpeed = glm::length(p->vel);
-  auto targetVelocity = targetSpeed * glm::vec2(-displacement.y, displacement.x) + body.get<Position>()->vel;
-  auto posError = o->radius * dir - displacement;
-  auto velError = targetVelocity  - p->vel;
+  float u     = Mass::unit*focus.get<Mass>()->mag;
+  float y     = glm::dot(dir, glm::normalize(o->periapsis));
+  if (y > 1.0f) y =  1.0f;
+  if (y <-1.0f) y = -1.0f;
+  float theta = acos(y);
+  float l     = dir.x*o->periapsis.y - dir.y*o->periapsis.x;
+  if (l < 0.0f) {
+    theta = 2.0f * 3.14159f - theta;
+  }
+  if (theta > 2.0f * 3.14159f) theta -= 2.0f * 3.14159f;
+  if (theta < 0.0f)            theta += 2.0f * 3.14159f;
 
-  p->acc += body.get<Position>()->acc;
-  p->acc += dir * Mass::unit*m->mag*body.get<Mass>()->mag / (m->mag*r*r);
+  auto k = sqrtf(u / glm::length(rp) * (1.0f + e));
 
-  if (!o->transfer) {
-    p->pos += posError;
-    p->vel = targetVelocity;
-    dir    = glm::normalize(p->vel);
-  } else {
-    p->acc += 0.8f  * velError; 
-    p->vel += 0.01f * posError;
+  auto  normalDirection = glm::normalize(glm::vec2(d.y, -d.x));
+  auto  radialDirection = glm::normalize(d);
 
-    dir    = glm::normalize(p->acc);
-    if (glm::length(posError) < (0.01f * o->radius)) {
-      o->transfer = false;
-    }
+  p->vel = radialDirection * k * e * sinf(theta)
+         + normalDirection * k * (1.0f + e * cosf(theta))
+         + focus.get<Position>()->vel;
+
+  if (o->verbose) {
+    Log::debug("************");
+    Log::debug("dir: %, %",   dir.x, dir.y);
+    Log::debug("Rp: %, %",  o->periapsis.x, o->periapsis.y);
+    Log::debug("acos: %", glm::dot(dir, glm::normalize(o->periapsis)));
+    Log::debug("theta: %",  theta);
+    Log::debug("theta: %",  theta);
+    Log::debug("vel: %, %", p->vel.x, p->vel.y);
   }
 
   b->apos = atan2(dir.y, dir.x) * 360.0f/6.28f + 90.0f;
@@ -661,6 +684,39 @@ Entity& createRoid(float x, float y, float r) {
   return roid;
 }
 
+Entity& createMoon(float x, float y, float r) {
+  auto& moon = game_.entity();
+  Log::debug("Created moon[%]: %", moon.name(), &moon);
+
+  moon.add<Time>();
+  moon.add<Position>();
+  moon.get<Position>()->pos = glm::vec2(x, y);
+  moon.add<Orientation>();
+  moon.add<Radius>(r);
+  moon.add<HillSphere>(20.0f * r, moon.name());
+  moon.add<Pickable>(moon.name());
+  moon.add<Mass>(r*r*r);
+  moon.add<Transform>();
+  moon.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
+                      FragmentShader("assets/gpu/texture.fp"));
+
+  moon.add<Handler<events::Collision>>([&](events::Collision) {
+    //removeFromGame(moon);
+  });
+
+
+  // TODO do we want Geometry, Textures and Programs to be components?
+  //
+  const GLfloat quad[] = {1.0,  1.0, 1.0, 1.0,
+                          1.0, -1.0, 1.0, 0.0,
+                         -1.0, -1.0, 0.0, 0.0,
+                         -1.0,  1.0, 0.0, 1.0};
+  unsigned w_, h_;
+  moon.add<GlVbo>(sizeof(quad), quad);
+  moon.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/moon01.png",    w_, h_).get());
+  return moon;
+}
+
 Entity& createGasPlanet(float x, float y, float r) {
   auto& roid = game_.entity();
   Log::debug("Created gas[%]: %", roid.name(), &roid);
@@ -670,7 +726,7 @@ Entity& createGasPlanet(float x, float y, float r) {
   roid.add<Orientation>();
   roid.get<Position>()->pos = glm::vec2(x, y);
   roid.add<Radius>(r);
-  roid.add<HillSphere>(1000.0f * r, roid.name());
+  roid.add<HillSphere>(100.0f * r, roid.name());
   roid.add<Pickable>(roid.name());
   roid.add<Mass>(r*r*r);
   roid.add<Transform>();
@@ -701,7 +757,7 @@ Entity& createStar(float x, float y, float r) {
   roid.add<Radius>(r);
   roid.add<HillSphere>(1000.0f * r, roid.name());
   roid.add<Pickable>(roid.name());
-  roid.add<Mass>(0.000000001f);
+  roid.add<Mass>(r*r);
   roid.add<Transform>();
   roid.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                       FragmentShader("assets/gpu/texture.fp"));
@@ -747,24 +803,28 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
 
   game_.registerEvent<events::Collision>();
 
-  //auto& star = createStar(0.0f, 0.0f, 50000.0f);
+  auto& star = createStar(0.0f, 0.0f, 5000.0f);
 
-  auto& gas = createGasPlanet(0.0f, 0.0f, 500.0f);
-  //gas.add<Orbit>(50000.0f, star.get<Position>()->pos, gas.name(), star.name());
+  auto   e = 0.0f;
+  auto  rp = 1500.0f;
+  auto  ra = rp * (1.0f + e)/(1.0f - e);
+  auto& gas = createGasPlanet(0.0f, 5000.0f + ra, 500.0f);
+  gas.add<Orbit>(glm::vec2(0.0f, -ra), e, 0.0f, gas.name(), star.name());
   createText(gas);
 
   auto& cam = game_.entity("camera");
-  cam.add<Projection>(Display::getWidth(), Display::getHeight(), 0.1f);
+  cam.add<Projection>(Display::getWidth(), Display::getHeight(), 0.07f);
   cam.add<Time>();
   cam.add<Position>();
   cam.add<Transform>();
 
-  for (unsigned i = 0; i < 5; i++) {
-    auto& ship = createShip(100.0f + rand() % 100, rand() % 100, 20.0f);
-    ship.add<Orbit>(600.0f + i*30.0f, ship.get<Position>()->pos, ship.name(), gas.name());
+  for (unsigned i = 0; i < 1; i++) {
+    auto& ship = createShip(100.0f, gas.get<Position>()->pos.y + 500.0f + 100.0f, 20.0f);
+    ship.add<Orbit>(glm::vec2(0.0f, 100.000f), 0.0f, 0.0f, ship.name(), gas.name());
     createText(ship);
   }
 
+  /*
   for (unsigned i = 0; i < 5; i++) {
     auto& ship = createBoid(100.0f + i*10.0f, i*10.0f, 80.0f);
     ship.add<Orbit>(600.0f + rand() % 100, ship.get<Position>()->pos, ship.name(), gas.name());
@@ -772,9 +832,16 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
   }
 
   for (unsigned i = 0; i < 5; i++) {
-    auto& roid = createRoid(100.0f - (rand() % 200), 100.0f - (rand() % 200), 100.0f + rand() % 100);
+    auto& roid = createRoid(100.0f - (rand() % 200), 100.0f - (rand() % 200), 40.0f + rand() % 40);
     roid.add<Orbit>(1000.0f + rand() % 1000, roid.get<Position>()->pos, roid.name(), gas.name());
     createText(roid);
+  }
+  */
+
+  for (unsigned i = 0; i < 1; i++) {
+    auto& moon = createMoon(0.0f, gas.get<Position>()->pos.y + 500.0f + 1000.0f, 100.0f);
+    moon.add<Orbit>(glm::vec2(0.0f, 1000.000f), 0.0f, 0.0f, moon.name(), gas.name());
+    createText(moon);
   }
 
   timerReactor_.setPeriodic(std::chrono::seconds(5), [&] () {
@@ -810,7 +877,7 @@ RoidRageGameTesting::onEvent(Tick tick) {
 
   game_.exec(collisions, &CollisionDetector::update); 
 
-  glClearColor(0.07f, 0.07f, 0.13f, 1.0f);
+  glClearColor(0.07f, 0.07f, 0.13f, 0.01f);
   glClear(GL_COLOR_BUFFER_BIT);
 
   game_.exec(renderSolid); 
@@ -891,6 +958,7 @@ void
 RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
   static Picker    picker;
 
+  // TODO this should be an inverse transform...
   auto& cam = game_.entity("camera");
   auto position = glm::vec2(mouse.x - Display::getWidth()/2.0f, 
                             mouse.y - Display::getHeight()/2.0f);
@@ -933,8 +1001,9 @@ RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
   }
 
   else if (mouse.button == GLFW_MOUSE_BUTTON_RIGHT && mouse.action == GLFW_PRESS) {
+    picker.startBox(position);
     game_.exec(picker, &Picker::testHillSphere); 
-    auto& candidates = picker.query();
+    auto candidates = picker.query();
     candidates.sort([&](Entity* a, Entity* b) -> bool {
       float ra = glm::length(position - a->get<Position>()->pos);
       float rb = glm::length(position - b->get<Position>()->pos);
@@ -950,15 +1019,28 @@ RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
       //for (auto h : candidates) {
       auto h = candidates.front();
       if (!candidates.empty() && h != s) {
-        float r = glm::length(position - h->get<Position>()->pos);
-        Log::debug("In hill sphere of entity[%]: r=%", h->name(), r);
-        if(glm::length(s->get<Position>()->vel) > 0.0f) {
-          s->addOrReplace<Orbit>(r, s->get<Position>()->pos, s->name(), h->name());
+        auto r1 = h->get<Position>()->pos - s->get<Position>()->pos;
+        //if(glm::length(s->get<Position>()->vel) > 0.0f) {
+        auto r2 = 1.2f * (h->get<Position>()->pos - position) * glm::normalize(r1);
+        glm::vec2 rp;
+        glm::vec2 ra;
+        if (glm::length(r1) < glm::length(r2)) {
+          rp = r1;
+          ra = r2;
+        } else {
+          rp = r2;
+          ra = r1;
         }
+        auto  e = std::abs((glm::length(ra) - glm::length(rp))
+                         / (glm::length(ra) + glm::length(rp)));
+        Log::debug("new orbit - Ra: %, Rp: %, e: %", 
+                   glm::length(ra), glm::length(rp), e);
+        //s->addOrReplace<Orbit>(r, glm::vec2(0.001f, 0.000f), s->get<Position>()->pos, s->name(), h->name());
+        s->addOrReplace<Orbit>(rp, e, 0.0f, s->name(), h->name());
       }
     }
+    picker.reset();
   }
-  picker.reset();
 }
 
 //------------------------------------------------------------------------------

@@ -45,6 +45,15 @@ struct EntityRef : public Component<EntityRef> {
   EntityRef(Entity* e) : entity(e) {}
 };
 
+template <typename Tag, typename T>
+struct Wrap {
+  Wrap() : t_() {}
+  Wrap(const T& t) : t_(t) {}
+  operator T() { return t_; }
+private:
+  T t_;
+};
+
 //------------------------------------------------------------------------------
 
 }
