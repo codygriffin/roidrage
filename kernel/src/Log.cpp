@@ -11,10 +11,6 @@ using namespace pronghorn;
 
 //------------------------------------------------------------------------------
 
-roidrage::TimeMs Log::time_;
-
-//------------------------------------------------------------------------------
-
 namespace pronghorn {
   void logCppString(const std::string& string) {
     std::cout << string << std::endl;
@@ -102,14 +98,6 @@ Log::popTag() {
 
 bool 
 Log::isRateLimited() {
-  bool isIt;
-  buffer_  = std::min(buffer_ + time_.mark() * rateSecs_, max_);
-  isIt = buffer_ > 0.0f;
-  if (isIt) {
-    buffer_ -= 1.0f;
-  }
-
-  //return isIt;
   return false;
 }
 

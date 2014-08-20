@@ -50,16 +50,41 @@ include mak/staticlib.mak
 include mak/sharedlib.mak
 
 ROIDRAGE_CXXFLAGS    := -std=gnu++0x -O0 -g -DGLFW_INCLUDE_GLCOREARB -DGL_ERROR_CHECK -DGLM_FORCE_RADIANS
-ROIDRAGE_CXXFLAGS    += -Iinc/ -Iboson/inc -Imain/inc -Iglm/ -Iglm/gtx -Iglm/gtc
-roidrage_OBJCXXFLAGS := -std=gnu++0x -O0 -g -x objective-c++
-roidrage_OBJCXXFLAGS += -Iinc/ -Iboson/inc -Imain/inc -Iglm/ -Iglm/gtx -Iglm/gtc
+ROIDRAGE_CXXFLAGS    += -Iinc/ -Iboson/inc -Ikernel/inc -Igl/inc -Iglm/ -Iglm/gtx -Iglm/gtc
+ROIDRAGE_OBJCXXFLAGS := -std=gnu++0x -O0 -g -x objective-c++
+ROIDRAGE_OBJCXXFLAGS += -Iinc/ -Iboson/inc -Ikernel/inc -Igl/inc -Iglm/ -Iglm/gtx -Iglm/gtc
 ROIDRAGE_LDFLAGS     := -lglfw3 
 ROIDRAGE_LDFLAGS     += -framework OpenGL -framework Cocoa -framework CoreVideo -framework IOKit
-ROIDRAGE_SRCS        := $(shell find src -name *.cpp) \
-												$(shell find boson -name *.cpp) \
-												$(shell find main -name *.cpp)
+ROIDRAGE_SRCS        := $(shell find gl     -name *.cpp) \
+												$(shell find kernel -name *.cpp) \
+												$(shell find boson  -name *.cpp) 
 
+# really dumb HACK
 OBJCPP_SRCS          := src/AssetManager.mm
 
+#-------------------------------------------------------------------------------
+
+ALPHA_CXXFLAGS    := $(ROIDRAGE_CXXFLAGS) -Imain/inc
+alpha_OBJCXXFLAGS := $(ROIDRAGE_OBJCXXFLAGS)
+ALPHA_LDFLAGS     := $(ROIDRAGE_LDFLAGS)
+ALPHA_SRCS        := $(ROIDRAGE_SRCS) \
+										 $(shell find alpha -name *.cpp) \
+										 $(shell find main -name *.cpp) # This is a deprecated path - 
+																								    # everything should be moved 
+																								    # to more specific or more general dirs
+
 # Create all the targets for our application, and specify any compiler or linker dependencies
-$(eval $(call APPLICATION,roidrage))
+$(eval $(call APPLICATION,alpha))
+
+#-------------------------------------------------------------------------------
+
+BETA_CXXFLAGS     := $(ROIDRAGE_CXXFLAGS) -Ibeta/inc 
+beta_OBJCXXFLAGS  := $(ROIDRAGE_OBJCXXFLAGS)
+BETA_LDFLAGS      := $(ROIDRAGE_LDFLAGS)
+BETA_SRCS         := $(ROIDRAGE_SRCS) \
+										 $(shell find beta -name *.cpp)
+
+# Create all the targets for our application, and specify any compiler or linker dependencies
+$(eval $(call APPLICATION,beta))
+
+#-------------------------------------------------------------------------------

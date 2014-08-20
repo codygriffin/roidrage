@@ -6,10 +6,6 @@
 #ifndef INCLUDED_LOG_H
 #define INCLUDED_LOG_H
 
-#ifndef INCLUDED_TIMEMS_H
-#include "TimeMs.h"
-#endif
-
 #ifndef INCLUDED_STACK
 #include <stack>
 #define INCLUDED_STACK
@@ -57,7 +53,6 @@ private:
   static float            max_;
   static float            rateSecs_;
   static float            buffer_;
-  static roidrage::TimeMs time_;
 };
 
 //------------------------------------------------------------------------------

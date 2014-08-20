@@ -24,7 +24,7 @@ PewPew::PewPew(float x, float y, Type type)
 , Position   ()
 , Radius     (30.0f)
 , Mass       (0.01f)
-, Charge     (0.0f)
+, Charge     (0.1f)
 , isDud_     (false)
 , type_      (type)
 {

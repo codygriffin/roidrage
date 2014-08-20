@@ -17,19 +17,7 @@
 
 // GL
 #include "Shader.h"
-#include "Program.h"
-#include "Framebuffer.h"
-#include "Texture.h"
-#include "VertexBufferObject.h"
-#include "OrthoCamera.h"
-#include "Frame.h"
 
-// Structure
-#include "Corvid.h"
-#include "Relation.h"
-#include "Population.h"
-
-// Utils
 #include "AssetManager.h"
 #include "Log.h"
 

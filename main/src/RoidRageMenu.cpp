@@ -8,7 +8,6 @@
 #include "RoidRageScore.h"
 #include "RoidRageSettings.h"
 #include "RoidRageGameSurvival.h"
-#include "RoidRageGameTesting.h"
 #include "RoidRageGame.h"
 
 #include "Shader.h"
@@ -50,7 +49,6 @@ RoidRageMenu::RoidRageMenu(RoidRage* pMachine, bool populateRoids)
 
   menuLayout_.add(new Button("classic",  []() {pRoidRage->transition<RoidRageGame>(false);}));
   menuLayout_.add(new Button("survival", []() {pRoidRage->transition<RoidRageGameSurvival>();}));
-  menuLayout_.add(new Button("testing",  []() {pRoidRage->transition<RoidRageGameTesting>();}));
   menuLayout_.add(new Button("settings", []() {pRoidRage->transition<RoidRageSettings>();}));
   //menuLayout_.add(new Button("score",    []() {pRoidRage->transition<RoidRageScore>();}));
   menuLayout_.add(new Button("quit",     []() {pRoidRage->transition<ConfirmQuit>();}));

@@ -4,15 +4,11 @@
 // 
 //------------------------------------------------------------------------------
 
-#ifndef INCLUDED_ROIDRAGEGAMETESTING_H
-#define INCLUDED_ROIDRAGEGAMETESTING_H
+#ifndef INCLUDED_BETAGAME_H
+#define INCLUDED_BETAGAME_H
 
-#ifndef INCLUDED_ROIDRAGE_H
-#include "RoidRage.h"
-#endif
-
-#ifndef INCLUDED_WORKQUEUE_H
-#include "WorkQueue.h"
+#ifndef INCLUDED_BETA_H
+#include "Beta.h"
 #endif
 
 #ifndef INCLUDED_TIMERREACTOR_H
@@ -24,22 +20,19 @@
 #define INCLUDED_RANDOM
 #endif
 
-#include "Entity.h"
-
 //------------------------------------------------------------------------------
 
-namespace roidrage { 
+namespace beta { 
 
 struct Frame;
 
 //------------------------------------------------------------------------------
 
-struct RoidRageGameTesting : public RoidRage::State {
-  RoidRageGameTesting(RoidRage* pMachine);
+struct BetaGame : public BetaMachine::State {
+  BetaGame(Beta* pMachine);
 
 protected:
   void onEvent(Tick);
-  void onEvent(AndroidBack);
   void onEvent(GlfwKey);
   void onEvent(GlfwMouseButton);
   void onEvent(GlfwMouseMove);
@@ -53,7 +46,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-} // namespace roidrage
+} // namespace beta
 
 //------------------------------------------------------------------------------
 

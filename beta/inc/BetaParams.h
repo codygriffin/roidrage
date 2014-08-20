@@ -11,17 +11,11 @@
 #include "vector_angle.hpp"
 #include <vector>
 
-#include "TimeMs.h"
-#include "Shader.h"
-#include "Program.h"
-#include "Texture.h"
-#include "VertexBufferObject.h"
-
 #include "Component.h"
 
 //------------------------------------------------------------------------------
 
-namespace roidrage { 
+namespace beta { 
 
 struct Glow {
   float glow;
@@ -86,12 +80,13 @@ struct Charge {
 };
 
 struct Mass : public boson::Component<Mass> {
-  static constexpr float unit = 3.6e-8f;
+  static constexpr float unit = 5.0e-3f;
   Mass(float r) 
     : mag(r) {
   }
   float mag;
 };
+constexpr float Mass::unit;
 
 struct Radius  : public boson::Component<Radius> {
   Radius(float r) 
@@ -134,38 +129,6 @@ struct Expiration {
 
   unsigned expiresInMs;
   unsigned ageMs;
-};
-
-struct RateLimiter {
-  RateLimiter(float rate, float burst, float buffer=0.0f)
-  : rate_(rate)
-  , burst_(burst)
-  , buffer_(buffer) {
-  }
-
-  bool isRateLimited() const {
-    refresh();  
-    return buffer_ <= 0.0f;
-  }
-
-  bool consume() const {
-    bool isLimited = isRateLimited();
-    if (!isLimited) {
-      buffer_ -= 1.0f;
-    }
-    return isLimited;
-  }
-
-  void refresh() const {
-    float addition = (time_.mark() / (rate_ * 1000.0f));
-    buffer_  = std::min(buffer_ + addition , burst_);
-  }
-
-private:
-  float            rate_;
-  float            burst_;
-  mutable float    buffer_;
-  mutable TimeMs   time_;
 };
 
 struct Thrust {
@@ -249,7 +212,7 @@ struct Track : boson::Component<Track<T>> {
 
 //------------------------------------------------------------------------------
 
-} // namespace 
+} // namespace beta
 
 //------------------------------------------------------------------------------
 

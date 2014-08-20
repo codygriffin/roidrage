@@ -4,34 +4,36 @@
 // 
 //------------------------------------------------------------------------------
 
-#include "RenderState.h"
-#include "OrthoCamera.h"
+#include "Beta.h"
+#include "Log.h"
+#include "Display.h"
 #include "Gl.h"
 
-#include <memory>
+//------------------------------------------------------------------------------
+
+using namespace pronghorn;
+using namespace beta;
 
 //------------------------------------------------------------------------------
 
-using namespace roidrage;
 
 //------------------------------------------------------------------------------
 
-std::unique_ptr<roidrage::OrthoCamera> RenderState::pCam_;
 
-//------------------------------------------------------------------------------
+BetaMachine* pBeta = 0;
 
-void 
-RenderState::reset(int width, int height) {
-  // Initialize Viewport
-  glViewport(0, 0, width, height);
-  pCam_.reset(new OrthoCamera(width, height));
-
+BetaMachine::BetaMachine(int w, int h, float s) 
+  : width  (w) 
+  , height (h) 
+  , dpiScaling (s) 
+{ 
+  roidrage::Display::reset(w, h, s);
+  glViewport(0, 0, w, h);
   glDisable(GL_SCISSOR_TEST);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glDisable(GL_DEPTH_TEST);
-  //glEnable(GL_DEPTH_TEST);
-  //glDepthFunc(GL_LEQUAL);
+  Log::info("Display initialized");
 }
 
 //------------------------------------------------------------------------------

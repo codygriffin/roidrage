@@ -4,9 +4,7 @@
 // 
 //------------------------------------------------------------------------------
 
-#include "RoidRageGameTesting.h"
-#include "RoidRageMenu.h"
-#include "RoidRageGameOver.h"
+#include "BetaGame.h"
 
 #include "Shader.h"
 #include "Program.h"
@@ -19,9 +17,10 @@
 
 #include "Entity.h"
 #include "System.h"
-//#include "Systems.h"
+#include "BetaParams.h"
 
 #include "Log.h"
+#include "WorkQueue.h"
 
 #include <iterator>
 #include <algorithm>
@@ -33,9 +32,9 @@
 //------------------------------------------------------------------------------
 
 using namespace pronghorn;
-using namespace roidrage;
 using namespace corvid;
 using namespace boson;
+using namespace beta;
 
 //------------------------------------------------------------------------------
 
@@ -778,8 +777,8 @@ Entity& createStar(float x, float y, float r) {
 
 //------------------------------------------------------------------------------
 
-RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine) 
-  : RoidRage::State(pMachine) 
+BetaGame::BetaGame(Beta* pMachine) 
+  : Beta::State(pMachine) 
 { 
   game_.registerIndex(updateTime);
 
@@ -813,7 +812,7 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
   createText(gas);
 
   auto& cam = game_.entity("camera");
-  cam.add<Projection>(Display::getWidth(), Display::getHeight(), 0.07f);
+  cam.add<Projection>(roidrage::Display::getWidth(), roidrage::Display::getHeight(), 0.07f);
   cam.add<Time>();
   cam.add<Position>();
   cam.add<Transform>();
@@ -853,7 +852,7 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
 //------------------------------------------------------------------------------
 
 void 
-RoidRageGameTesting::onEvent(Tick tick) {
+BetaGame::onEvent(Tick tick) {
   static Acceleration       acceleration;
   static Transformations    transforms;
   static CollisionDetector collisions;
@@ -891,7 +890,7 @@ RoidRageGameTesting::onEvent(Tick tick) {
 //------------------------------------------------------------------------------
 // TODO definitely a better way for this - perhaps a map of keys and lambdas?
 void 
-RoidRageGameTesting::onEvent(GlfwKey key) {
+BetaGame::onEvent(GlfwKey key) {
   float scrollSpeed = 2000.0f / zoom;
 
   auto& cam = game_.entity("camera");
@@ -936,32 +935,32 @@ RoidRageGameTesting::onEvent(GlfwKey key) {
 //------------------------------------------------------------------------------
 
 void 
-RoidRageGameTesting::onEvent(GlfwMouseMove mouse) {
+BetaGame::onEvent(GlfwMouseMove mouse) {
 }
 
 //------------------------------------------------------------------------------
 
 void 
-RoidRageGameTesting::onEvent(GlfwMouseScroll mouse) {
+BetaGame::onEvent(GlfwMouseScroll mouse) {
   float zoomSensitivity = 0.01f * zoom;
   zoom += mouse.y * zoomSensitivity;
   zoom = std::min(zoom,  5.0f);
   zoom = std::max(zoom,  0.001f);
   auto& cam = game_.entity("camera");
-  cam.replace<Projection>(Display::getWidth(), Display::getHeight(), zoom); 
+  cam.replace<Projection>(roidrage::Display::getWidth(), roidrage::Display::getHeight(), zoom); 
   game_.entity("camera").get<Position>()->vel = glm::vec2(0.0f, 0.0f);
 }
 
 //------------------------------------------------------------------------------
 // this is a hot mess
 void 
-RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
+BetaGame::onEvent(GlfwMouseButton mouse) {
   static Picker    picker;
 
   // TODO this should be an inverse transform...
   auto& cam = game_.entity("camera");
-  auto position = glm::vec2(mouse.x - Display::getWidth()/2.0f, 
-                            mouse.y - Display::getHeight()/2.0f);
+  auto position = glm::vec2(mouse.x - roidrage::Display::getWidth()/2.0f, 
+                            mouse.y - roidrage::Display::getHeight()/2.0f);
   position /= zoom;
   position -= cam.get<Position>()->pos;
 
@@ -1040,13 +1039,6 @@ RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
     }
     picker.reset();
   }
-}
-
-//------------------------------------------------------------------------------
-
-void 
-RoidRageGameTesting::onEvent(AndroidBack back) {
-  getMachine()->transition<RoidRageMenu>(true);
 }
 
 //------------------------------------------------------------------------------
