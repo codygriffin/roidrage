@@ -6,7 +6,7 @@ Requires glfw3
 
 note: kinda portable, but this will only build on OS X Mavericks at the moment...
 
-
 ```bash
-$ make roidrage.run
+$ make alpha.run -j # Run original (ported from Android)
+$ make beta.run -j  # RTS development
 ```

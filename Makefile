@@ -56,8 +56,7 @@ ROIDRAGE_OBJCXXFLAGS += -Iinc/ -Iboson/inc -Ikernel/inc -Igl/inc -Iglm/ -Iglm/gt
 ROIDRAGE_LDFLAGS     := -lglfw3 
 ROIDRAGE_LDFLAGS     += -framework OpenGL -framework Cocoa -framework CoreVideo -framework IOKit
 ROIDRAGE_SRCS        := $(shell find gl     -name *.cpp) \
-												$(shell find kernel -name *.cpp) \
-												$(shell find boson  -name *.cpp) 
+												$(shell find kernel -name *.cpp) 
 
 # really dumb HACK
 OBJCPP_SRCS          := src/AssetManager.mm
