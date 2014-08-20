@@ -757,7 +757,7 @@ Entity& createStar(float x, float y, float r) {
   roid.add<Radius>(r);
   roid.add<HillSphere>(1000.0f * r, roid.name());
   roid.add<Pickable>(roid.name());
-  roid.add<Mass>(r*r);
+  roid.add<Mass>(r*r*r);
   roid.add<Transform>();
   roid.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                       FragmentShader("assets/gpu/texture.fp"));
@@ -831,12 +831,12 @@ RoidRageGameTesting::RoidRageGameTesting(RoidRage* pMachine)
     createText(ship);
   }
 
+  */
   for (unsigned i = 0; i < 5; i++) {
-    auto& roid = createRoid(100.0f - (rand() % 200), 100.0f - (rand() % 200), 40.0f + rand() % 40);
-    roid.add<Orbit>(1000.0f + rand() % 1000, roid.get<Position>()->pos, roid.name(), gas.name());
+    auto& roid = createRoid(6000.0f - (rand() % 200), 6000.0f - (rand() % 200), 40.0f + rand() % 40);
+    roid.add<Orbit>(glm::vec2(1000.0f + rand() % 200, 1000.0f + rand() % 200), 0.0f, 0.0f, roid.name(), star.name());
     createText(roid);
   }
-  */
 
   for (unsigned i = 0; i < 1; i++) {
     auto& moon = createMoon(0.0f, gas.get<Position>()->pos.y + 500.0f + 1000.0f, 100.0f);
@@ -1021,22 +1021,21 @@ RoidRageGameTesting::onEvent(GlfwMouseButton mouse) {
       if (!candidates.empty() && h != s) {
         auto r1 = h->get<Position>()->pos - s->get<Position>()->pos;
         //if(glm::length(s->get<Position>()->vel) > 0.0f) {
-        auto r2 = 1.2f * (h->get<Position>()->pos - position) * glm::normalize(r1);
-        glm::vec2 rp;
-        glm::vec2 ra;
+        auto r2 = -1.2f * glm::length(h->get<Position>()->pos - position) * glm::normalize(r1);
+        glm::vec2 periapsis;
+        glm::vec2 apoapsis;
         if (glm::length(r1) < glm::length(r2)) {
-          rp = r1;
-          ra = r2;
+          periapsis = r1;
+          apoapsis  = r2;
         } else {
-          rp = r2;
-          ra = r1;
+          periapsis = r2;
+          apoapsis  = r1;
         }
-        auto  e = std::abs((glm::length(ra) - glm::length(rp))
-                         / (glm::length(ra) + glm::length(rp)));
-        Log::debug("new orbit - Ra: %, Rp: %, e: %", 
-                   glm::length(ra), glm::length(rp), e);
-        //s->addOrReplace<Orbit>(r, glm::vec2(0.001f, 0.000f), s->get<Position>()->pos, s->name(), h->name());
-        s->addOrReplace<Orbit>(rp, e, 0.0f, s->name(), h->name());
+        auto  e = std::abs((glm::length(apoapsis) - glm::length(periapsis))
+                         / (glm::length(apoapsis) + glm::length(periapsis)));
+        Log::debug("new orbit - Ra: % (%,%), Rp: % (%,%), e: %", 
+                   glm::length(apoapsis), apoapsis.x, apoapsis.y, glm::length(periapsis), periapsis.x, periapsis.y, e);
+        s->addOrReplace<Orbit>(periapsis, e, 0.0f, s->name(), h->name());
       }
     }
     picker.reset();
