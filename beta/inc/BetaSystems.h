@@ -105,7 +105,7 @@ struct Picker {
 
   void 
   testPickable(Pickable* s, Position* p, Radius* r) {
-    static const float paddingFactor = 3.0f;  
+    static const float paddingFactor = 2.0f;  
 
     auto& entity      = game_.entity(s->entity);
 
@@ -128,13 +128,8 @@ struct Picker {
 
     auto& entity = game_.entity(r->entity);
 
-    Log::debug("testing if p: (%,%) is in %'s hill sphere c: (%,%) r: %", 
-               start.x, start.y, entity.name(), p->pos.x, p->pos.y, r->mag);
     if (r->mag > glm::length(displacement)) { 
-      Log::debug("yep");
       picked.push_back(&entity);
-    } else {
-      Log::debug("nope");
     }
   }
 };
@@ -331,19 +326,31 @@ struct Transformations {
 //------------------------------------------------------------------------------
 
 void
-orbit(Position* p, Mass* m, Orbit* o, Orientation *b) {
-  auto focus = game_.entity(o->focus);
-  auto d     = p->pos - focus.get<Position>()->pos;
+flightGoals(Goal* g, FlightPlan* p) {
+  if (g->criteria()) {
+    if (!p->maneuvers.empty()) {
+      Log::debug("goal met - next maneuver");
+      p->maneuvers.front()();
+      p->maneuvers.pop_front();
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+
+void
+flightControl(Position* p, Mass* m, Orbit* o, Orientation *b) {
+  auto d     = p->pos - o->focus->get<Position>()->pos;
   auto dir   = glm::normalize(d);
   auto r     = glm::length(d);
   auto e     = o->eccentricity;
   auto ra = glm::length(o->periapsis) * (1.0f + e)/(1.0f - e);
-  auto rp    = o->periapsis + focus.get<Position>()->pos;
+  auto rp    = o->periapsis + o->focus->get<Position>()->pos;
 
   const float pi = 3.14159f;
 
 
-  float u     = Mass::unit*focus.get<Mass>()->mag;
+  float u     = Mass::unit*o->focus->get<Mass>()->mag;
   float y     = glm::dot(dir, glm::normalize(o->periapsis));
   if (y > 1.0f) y =  1.0f;
   if (y <-1.0f) y = -1.0f;
@@ -362,17 +369,7 @@ orbit(Position* p, Mass* m, Orbit* o, Orientation *b) {
 
   p->vel = radialDirection * k * e * sinf(theta)
          + normalDirection * k * (1.0f + e * cosf(theta))
-         + focus.get<Position>()->vel;
-
-  if (o->verbose) {
-    Log::debug("************");
-    Log::debug("dir: %, %",   dir.x, dir.y);
-    Log::debug("Rp: %, %",    o->periapsis.x, o->periapsis.y);
-    Log::debug("acos: %",     glm::dot(dir, glm::normalize(o->periapsis)));
-    Log::debug("theta: %",    theta);
-    Log::debug("theta: %",    theta);
-    Log::debug("vel: %, %",   p->vel.x, p->vel.y);
-  }
+         + o->focus->get<Position>()->vel;
 
   b->apos = atan2(dir.y, dir.x) * 360.0f/(2.0f*pi) + 90.0f;
 

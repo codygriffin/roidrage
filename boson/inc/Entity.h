@@ -50,7 +50,7 @@ struct Entity {
   bool has();
 
   template <typename T>
-  T* get();
+  T* get() const;
 
   const std::string& name() const { return name_; }
 

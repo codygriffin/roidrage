@@ -123,7 +123,7 @@ Entity::trigger(E event) {
 
 template <typename T>
 T*
-Entity::get() {
+Entity::get() const {
   auto item = components_.find(index<T>());
   if (item != components_.end()) {
     return static_cast<T*>(item->second);

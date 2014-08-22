@@ -227,12 +227,12 @@ struct Orbit : public Component<Orbit> {
   float       eccentricity;
   float       phase;
 
-  std::string entity;
-  std::string focus;
+  Entity*     entity;
+  Entity*     focus;
   bool        verbose;
 
-  Orbit(const glm::vec2& p, float ecc, float phs, const std::string& e, const std::string& b, bool v = false) 
-    : periapsis(p), eccentricity(ecc), phase(phs), entity(e), focus(b), verbose(v) {}
+  Orbit(const glm::vec2& p, float ecc, float phs, Entity* e, Entity* f, bool v = false) 
+    : periapsis(p), eccentricity(ecc), phase(phs), entity(e), focus(f), verbose(v) {}
 };
 
 static float zoom = 0.1f;
@@ -267,6 +267,16 @@ struct String : public boson::Component<String> {
   String(const std::string& s, float r = 20.0f) : str(s), size(r) {}
   std::string str;
   float       size;
+};
+
+struct Goal : boson::Component<Goal> {
+  std::function<bool()> criteria;
+  Goal(std::function<bool()> c) : criteria(c) {}
+};
+
+struct FlightPlan : boson::Component<FlightPlan> {
+  std::deque<std::function<void()>> maneuvers;
+  FlightPlan(const std::deque<std::function<void()>>& m) : maneuvers(m) {}
 };
 
 

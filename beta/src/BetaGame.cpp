@@ -44,6 +44,7 @@ static  corvid::WorkQueue    gameQueue_;
 // Big hacks - these should be cleaned up and broken out into proper classes 
 #include "BetaComponents.h"
 #include "BetaSystems.h"
+#include "FlightPlan.h" 
 
 //------------------------------------------------------------------------------
 
@@ -184,7 +185,7 @@ Entity& createMoon(float x, float y, float r) {
   moon.add<Radius>(r);
   moon.add<HillSphere>(20.0f * r, moon.name());
   moon.add<Pickable>(moon.name());
-  moon.add<Mass>(r*r*r);
+  moon.add<Mass>(r*r*r*500.0f);
   moon.add<Transform>();
   moon.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                       FragmentShader("assets/gpu/texture.fp"));
@@ -217,7 +218,7 @@ Entity& createGasPlanet(float x, float y, float r) {
   roid.add<Radius>(r);
   roid.add<HillSphere>(100.0f * r, roid.name());
   roid.add<Pickable>(roid.name());
-  roid.add<Mass>(r*r*r);
+  roid.add<Mass>(r*r*r*100.0f);
   roid.add<Transform>();
   roid.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                       FragmentShader("assets/gpu/texture.fp"));
@@ -273,7 +274,8 @@ BetaGame::BetaGame(Beta* pMachine)
   game_.registerIndex(updateTime);
 
   game_.registerIndex(&Acceleration::reset);
-  game_.registerIndex(orbit);
+  game_.registerIndex(flightGoals);
+  game_.registerIndex(flightControl);
   game_.registerIndex(&Acceleration::update);
   game_.registerIndex(updatePosition);
   game_.registerIndex(track);
@@ -294,12 +296,13 @@ BetaGame::BetaGame(Beta* pMachine)
 
   auto& star = createStar(0.0f, 0.0f, 5000.0f);
 
-  auto   e = 0.0f;
-  auto  rp = 1500.0f;
-  auto  ra = rp * (1.0f + e)/(1.0f - e);
-  auto& gas = createGasPlanet(0.0f, 5000.0f + ra, 500.0f);
-  gas.add<Orbit>(glm::vec2(0.0f, -ra), e, 0.0f, gas.name(), star.name());
+  auto& gas = createGasPlanet(0.0f, ~star*1.5f, 500.0f);
+  park(gas, star);
   createText(gas);
+
+  auto& gas2 = createGasPlanet(0.0f, -~star*1.5f, 500.0f);
+  park(gas2, star);
+  createText(gas2);
 
   auto& cam = game_.entity("camera");
   cam.add<Projection>(roidrage::Display::getWidth(), roidrage::Display::getHeight(), 0.07f);
@@ -308,30 +311,33 @@ BetaGame::BetaGame(Beta* pMachine)
   cam.add<Transform>();
 
   for (unsigned i = 0; i < 1; i++) {
-    auto& ship = createShip(100.0f, gas.get<Position>()->pos.y + 500.0f + 100.0f, 20.0f);
-    ship.add<Orbit>(glm::vec2(0.0f, 100.000f), 0.0f, 0.0f, ship.name(), gas.name());
+    auto& ship = createShip(gas.get<Position>()->pos.x + ~gas * 1.5f, gas.get<Position>()->pos.y, 20.0f);
+    park(ship, gas); 
     createText(ship);
   }
 
   /*
   for (unsigned i = 0; i < 5; i++) {
     auto& ship = createBoid(100.0f + i*10.0f, i*10.0f, 80.0f);
-    ship.add<Orbit>(600.0f + rand() % 100, ship.get<Position>()->pos, ship.name(), gas.name());
+    ship.add<Orbit>(600.0f + rand() % 100, ship.get<Position>()->pos, ship, gas);
     createText(ship);
   }
 
   */
   for (unsigned i = 0; i < 5; i++) {
-    auto& roid = createRoid(6000.0f - (rand() % 200), 6000.0f - (rand() % 200), 40.0f + rand() % 40);
-    roid.add<Orbit>(glm::vec2(1000.0f + rand() % 200, 1000.0f + rand() % 200), 0.0f, 0.0f, roid.name(), star.name());
+    auto& roid = createRoid(0.0f, ~star * 1.5f, 40.0f + rand() % 40);
+    park(roid, star);
     createText(roid);
   }
 
-  for (unsigned i = 0; i < 1; i++) {
-    auto& moon = createMoon(0.0f, gas.get<Position>()->pos.y + 500.0f + 1000.0f, 100.0f);
-    moon.add<Orbit>(glm::vec2(0.0f, 1000.000f), 0.0f, 0.0f, moon.name(), gas.name());
-    createText(moon);
-  }
+  auto& moon = createMoon(0.0f, gas.get<Position>()->pos.y + ~gas*1.5f, 100.0f);
+  park(moon, gas);
+  createText(moon);
+
+  auto& moon2 = createMoon(0.0f, gas2.get<Position>()->pos.y + ~gas*1.5f, 100.0f);
+  park(moon2, gas2);
+  createText(moon2);
+
 
   timerReactor_.setPeriodic(std::chrono::seconds(5), [&] () {
     gameQueue_.enqueue( [&] () {
@@ -350,7 +356,8 @@ BetaGame::onEvent(Tick tick) {
   game_.exec(acceleration, &Acceleration::reset); 
 
   // Begin FSM stuff
-  game_.exec(orbit); 
+  game_.exec(flightGoals); 
+  game_.exec(flightControl); 
 
   //game_.exec(acceleration, &Acceleration::update); 
   game_.exec(updateTime); 
@@ -501,13 +508,14 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
 
     for (auto c : candidates) {
       float rc = glm::length(position - c->get<Position>()->pos);
-      Log::debug("candidate [%]: r=%", c->name(), rc);
     }
     for (auto kv : Selection::selected) {
       auto s = kv.first;
       //for (auto h : candidates) {
       auto h = candidates.front();
       if (!candidates.empty() && h != s) {
+        moveTo(*s, *h);
+  /*
         auto r1 = h->get<Position>()->pos - s->get<Position>()->pos;
         //if(glm::length(s->get<Position>()->vel) > 0.0f) {
         auto r2 = -1.2f * glm::length(h->get<Position>()->pos - position) * glm::normalize(r1);
@@ -524,7 +532,8 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
                          / (glm::length(apoapsis) + glm::length(periapsis)));
         Log::debug("new orbit - Ra: % (%,%), Rp: % (%,%), e: %", 
                    glm::length(apoapsis), apoapsis.x, apoapsis.y, glm::length(periapsis), periapsis.x, periapsis.y, e);
-        s->addOrReplace<Orbit>(periapsis, e, 0.0f, s->name(), h->name());
+        s->addOrReplace<Orbit>(periapsis, e, 0.0f, s, h);
+*/
       }
     }
     picker.reset();
