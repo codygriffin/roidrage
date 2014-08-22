@@ -210,6 +210,66 @@ struct Track : boson::Component<Track<T>> {
   Track(T* v = 0) : value(v) {}
 };
 
+struct Time : Component<Time> {
+  float pos;
+  float vel;
+  Time() : pos(0), vel(0) {}
+};
+
+struct Target : public Component<Target> {
+  glm::vec2 position;
+  Target(const glm::vec2& p) : position(p) {}
+  Target(const std::string& e) : position(game_.entity(e).get<Position>()->pos) {}
+};
+
+struct Orbit : public Component<Orbit> {
+  glm::vec2   periapsis;
+  float       eccentricity;
+  float       phase;
+
+  std::string entity;
+  std::string focus;
+  bool        verbose;
+
+  Orbit(const glm::vec2& p, float ecc, float phs, const std::string& e, const std::string& b, bool v = false) 
+    : periapsis(p), eccentricity(ecc), phase(phs), entity(e), focus(b), verbose(v) {}
+};
+
+static float zoom = 0.1f;
+struct Projection : public Component<Projection> {
+  glm::mat4 matrix;
+  Projection(float width, float height, float zoom = 0.1f) 
+    : matrix (glm::ortho((-width/2.0f / zoom), 
+                         (width/2.0f / zoom), 
+                         (height/2.0f / zoom), 
+                         (-height/2.0f / zoom), 
+                          1.0f, -1.0f)) {}
+};
+
+struct Pickable : boson::Component<Pickable> {
+  std::string entity;
+  Pickable(const std::string& name) : entity(name) {}
+};
+
+struct HillSphere  : public boson::Component<HillSphere> {
+  float mag;
+  std::string entity;
+  HillSphere(float r, std::string& name) : mag(r), entity(name) {}
+};
+
+namespace events {
+  struct Collision {};
+  struct LeftClick {};
+  struct RightClick {};
+}
+
+struct String : public boson::Component<String> {
+  String(const std::string& s, float r = 20.0f) : str(s), size(r) {}
+  std::string str;
+  float       size;
+};
+
+
 //------------------------------------------------------------------------------
 
 } // namespace beta
