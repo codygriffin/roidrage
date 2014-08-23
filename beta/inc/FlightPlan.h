@@ -10,26 +10,53 @@ float operator ~(const Entity& a) {
 // Creates adds a parking orbit to entity around center
 // radius us just 1.14 * the radius of center
 // TODO: barycentric orbits
-void park(Entity& entity, Entity& center) {
+void park(Entity& entity, Entity& center, float r = 1.5f) {
   // direction of periapsis doesn't matter because we're circular
-  entity.addOrReplace<Orbit>(glm::vec2(0.0f, ~center*1.5f), 0.0f, 0.0f, &entity, &center);
+  entity.addOrReplace<Orbit>(glm::vec2(0.0f, ~center*r), 0.0f, 0.0f, &entity, &center);
 
   Log::debug("new parking orbit for % around % - radius: %",
-             entity.name(), center.name(),  ~center*1.5f);
+             entity.name(), center.name(),  ~center*r);
 
   
   Entity* c = &center;
   Entity* e = &entity;
   entity.addOrReplace<Goal>([=](){
-    float d = (~(*c)*1.5f  - glm::length((*c) - (*e)))/~(*c)*1.5f;
+    float d = (~(*c)*r  - glm::length((*c) - (*e)))/~(*c)*r;
     return std::abs(d) < 0.30f;
+  });
+}
+
+void approach(Entity& entity, Entity& next) {
+  Log::debug("% approaching %-orbit ",
+             entity.name(), next.name());
+
+  Entity* c = entity.get<Orbit>()->focus;
+  Entity* e = &entity;
+  Entity* n = &next;
+
+  glm::vec2 periapsis = *c - *e;
+  glm::vec2 apoapsis  = -glm::normalize(periapsis) * ~(*c) * 2.0f;
+
+  // These don't change 
+  const float rp = glm::length(periapsis);
+  const float ra = glm::length(apoapsis);
+  const float ec = std::abs((ra - rp) / (ra + rp));
+  entity.addOrReplace<Orbit>(periapsis, ec, 0.0f, e, c);
+  entity.addOrReplace<Goal>([=]() {
+    auto  a = *e - *c;
+    auto  b = *n - *c;
+    auto  c = *e - *n;
+    float ab = glm::length(a) * glm::length(b);
+    float nr = 1.5f*~(*n);
+    return std::abs(glm::length(c) - nr)/nr < 0.1 
+        || std::abs(glm::dot(a,b)  - ab)/ab < 0.1;
   });
 }
 
 // Creates a transfer orbit that goes from a parking orbit
 void transfer(Entity& entity, Entity& dest) {
-  glm::vec2 apoapsis  = dest - entity;
-  glm::vec2 periapsis = -glm::normalize(apoapsis) * ~dest * 1.5f;
+  glm::vec2 apoapsis  = entity - dest;
+  glm::vec2 periapsis = glm::normalize(apoapsis) * ~dest * 1.5f;
 
   // These don't change 
   const float rp = glm::length(periapsis);
@@ -53,37 +80,30 @@ void transfer(Entity& entity, Entity& dest) {
 }
 
 void moveTo(Entity& entity, Entity& goal) {
-  Log::debug("traversing from % to root", entity.name());
   auto current = &entity;
   std::deque<Entity*> src = {&entity};
   while (current) {
     if (current->has<Orbit>()) {
       auto next = current->get<Orbit>()->focus;
       src.push_back(next);
-      Log::debug("adding %", next->name());
       current = next;
     } else {
       current = 0;
     }
   }
 
-  Log::debug("traversing from % to root", goal.name());
   current = &goal;
   std::deque<Entity*> dst = {&goal};
   while (current) {
     if (current->has<Orbit>()) {
       auto next = current->get<Orbit>()->focus;
-      Log::debug("adding %", next->name());
       dst.push_front(next);
       current = next;
     } else {
       current = 0;
     }
   }
-  for (auto x : src) { Log::debug("src: %", x->name()); }
-  for (auto y : dst) { Log::debug("dst: %", y->name()); }
 
-  Log::debug("finding common ancestor");
   Entity* lca = 0;
   while (src.back() == dst.front()) {
     lca = src.back();
@@ -91,14 +111,9 @@ void moveTo(Entity& entity, Entity& goal) {
     dst.pop_front();
   } 
   src.push_back(lca);
-  Log::debug("ancestor = %", lca->name());
   
   std::deque<Entity*> entities(src.begin(), src.end());
-  for (auto z : entities) { Log::debug("first: %", z->name()); }
-
   std::copy(dst.begin(), dst.end(), std::back_inserter(entities));
-  for (auto z : entities) { Log::debug("appended: %", z->name()); }
-
   std::deque<std::function<void()>> plan;
 
   entities.pop_front();
@@ -108,8 +123,9 @@ void moveTo(Entity& entity, Entity& goal) {
     Log::debug("transfer and park to %", (*e)->name());
     Entity* ptr1 = &entity;
     Entity* ptr2 = *e;
+    plan.push_back([=](){ approach(*ptr1, *ptr2); });
     plan.push_back([=](){ transfer(*ptr1, *ptr2); });
-    plan.push_back([=](){ park(*ptr1, *ptr2); });
+    plan.push_back([=](){ park    (*ptr1, *ptr2); });
     e++;
   }
 

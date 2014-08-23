@@ -300,8 +300,8 @@ BetaGame::BetaGame(Beta* pMachine)
   park(gas, star);
   createText(gas);
 
-  auto& gas2 = createGasPlanet(0.0f, -~star*1.5f, 500.0f);
-  park(gas2, star);
+  auto& gas2 = createGasPlanet(0.0f, -~star*3.5f, 700.0f);
+  park(gas2, star, 3.5f);
   createText(gas2);
 
   auto& cam = game_.entity("camera");
