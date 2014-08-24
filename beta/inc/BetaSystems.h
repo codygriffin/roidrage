@@ -263,8 +263,8 @@ void updateOrientation(Time* time, Orientation* o) {
   }
 
   // Clamp 
-  o->avel = std::min(o->avel,  3.0f);
-  o->avel = std::max(o->avel, -3.0f);
+  o->avel = std::min(o->avel,  30.0f);
+  o->avel = std::max(o->avel, -30.0f);
   o->aacc = std::min(o->aacc,  0.004f);
   o->aacc = std::max(o->aacc, -0.004f);
 }

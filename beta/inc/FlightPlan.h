@@ -7,6 +7,10 @@ float operator ~(const Entity& a) {
   return a.get<Radius>()->mag;
 }
 
+float radiusOf(Entity* pEntity) {
+  return pEntity->get<Radius>()->mag;
+}
+
 // Creates adds a parking orbit to entity around center
 // radius us just 1.14 * the radius of center
 // TODO: barycentric orbits
@@ -21,7 +25,8 @@ void park(Entity& entity, Entity& center, float r = 1.5f) {
   Entity* c = &center;
   Entity* e = &entity;
   entity.addOrReplace<Goal>([=](){
-    float d = (~(*c)*r  - glm::length((*c) - (*e)))/~(*c)*r;
+    float p = radiusOf(c)*r;
+    float d = (p - glm::length((*c) - (*e)))/p;
     return std::abs(d) < 0.30f;
   });
 }
@@ -35,7 +40,7 @@ void approach(Entity& entity, Entity& next) {
   Entity* n = &next;
 
   glm::vec2 periapsis = *c - *e;
-  glm::vec2 apoapsis  = -glm::normalize(periapsis) * ~(*c) * 2.0f;
+  glm::vec2 apoapsis  = -glm::normalize(periapsis) * radiusOf(c) * 2.0f;
 
   // These don't change 
   const float rp = glm::length(periapsis);
@@ -74,7 +79,8 @@ void transfer(Entity& entity, Entity& dest) {
   Entity* cp = &dest;
   Entity* ep = &entity;
   entity.addOrReplace<Goal>([=](){
-    float d = (~(*cp)*1.5f  - glm::length((*cp) - (*ep)))/~(*cp)*1.5f;
+    float r = radiusOf(cp)*1.5f;
+    float d = (r - glm::length((*cp) - (*ep)))/r;
     return std::abs(d) < 0.30f;
   });
 }

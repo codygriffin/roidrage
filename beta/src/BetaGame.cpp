@@ -305,10 +305,14 @@ BetaGame::BetaGame(Beta* pMachine)
   createText(gas2);
 
   auto& cam = game_.entity("camera");
-  cam.add<Projection>(roidrage::Display::getWidth(), roidrage::Display::getHeight(), 0.07f);
+  cam.add<Projection>(roidrage::Display::getWidth(), roidrage::Display::getHeight(), 0.1);
   cam.add<Time>();
   cam.add<Position>();
+  cam.add<Orientation>();
   cam.add<Transform>();
+
+  auto& overlay = game_.entity("overlay");
+  overlay.add<Projection>(roidrage::Display::getWidth(), roidrage::Display::getHeight(), 1.0);
 
   for (unsigned i = 0; i < 1; i++) {
     auto& ship = createShip(gas.get<Position>()->pos.x + ~gas * 1.5f, gas.get<Position>()->pos.y, 20.0f);
@@ -316,14 +320,6 @@ BetaGame::BetaGame(Beta* pMachine)
     createText(ship);
   }
 
-  /*
-  for (unsigned i = 0; i < 5; i++) {
-    auto& ship = createBoid(100.0f + i*10.0f, i*10.0f, 80.0f);
-    ship.add<Orbit>(600.0f + rand() % 100, ship.get<Position>()->pos, ship, gas);
-    createText(ship);
-  }
-
-  */
   for (unsigned i = 0; i < 5; i++) {
     auto& roid = createRoid(0.0f, ~star * 1.5f, 40.0f + rand() % 40);
     park(roid, star);
@@ -389,40 +385,55 @@ BetaGame::onEvent(Tick tick) {
 void 
 BetaGame::onEvent(GlfwKey key) {
   float scrollSpeed = 2000.0f / zoom;
+  float rotateSpeed = 20.0f;
 
   auto& cam = game_.entity("camera");
 
+  auto up    = glm::vec2(0.0f, -scrollSpeed);
+  auto right = glm::vec2(-scrollSpeed, 0.0f);
+  
+  // Convert into camera-local
+  float theta = atan2(cam.get<Transform>()->transform[0][0],
+                      cam.get<Transform>()->transform[0][1])
+              - 3.14156f/2.0f;
+  up    = glm::rotate(up,    theta);
+  right = glm::rotate(right, theta);
+  // need to rotate to match camera
+
+  // Factor out all of the navigation stuff 
+  // Doesn't work too well if you are scrolling and moving 
+  // (gets 'stuck')
   switch (key.key) {
     case GLFW_KEY_W:
       if (key.action == GLFW_PRESS) {
-        cam.get<Position>()->vel += glm::vec2(0.0f, scrollSpeed);
+        cam.get<Position>()->vel += up;
       }
       if (key.action == GLFW_RELEASE) {
-        cam.get<Position>()->vel -= glm::vec2(0.0f, scrollSpeed);
+        cam.get<Position>()->vel -= up;
       }
     break;
     case GLFW_KEY_A:
       if (key.action == GLFW_PRESS) {
-        cam.get<Position>()->vel += glm::vec2(scrollSpeed, 0.0f);
+        cam.get<Position>()->vel += -right;
       }
       if (key.action == GLFW_RELEASE) {
-        cam.get<Position>()->vel -= glm::vec2(scrollSpeed, 0.0f);
+        cam.get<Position>()->vel -= -right;
       }
     break;
     case GLFW_KEY_S:
       if (key.action == GLFW_PRESS) {
-        cam.get<Position>()->vel += glm::vec2(0.0f, -scrollSpeed);
+        cam.get<Position>()->vel += -up;
       }
       if (key.action == GLFW_RELEASE) {
-        cam.get<Position>()->vel -= glm::vec2(0.0f, -scrollSpeed);
+        cam.get<Position>()->vel -= -up;
       }
     break;
     case GLFW_KEY_D:
       if (key.action == GLFW_PRESS) {
-        cam.get<Position>()->vel += glm::vec2(-scrollSpeed, 0.0f);
+        cam.get<Position>()->vel += right;
       }
       if (key.action == GLFW_RELEASE) {
-        cam.get<Position>()->vel -= glm::vec2(-scrollSpeed, 0.0f);
+        cam.get<Position>()->vel -= right;
       }
     break;
   
@@ -444,7 +455,9 @@ BetaGame::onEvent(GlfwMouseScroll mouse) {
   zoom = std::min(zoom,  5.0f);
   zoom = std::max(zoom,  0.001f);
   auto& cam = game_.entity("camera");
-  cam.replace<Projection>(roidrage::Display::getWidth(), roidrage::Display::getHeight(), zoom); 
+  cam.replace<Projection>(roidrage::Display::getWidth(), 
+                          roidrage::Display::getHeight(), 
+                          zoom); 
   game_.entity("camera").get<Position>()->vel = glm::vec2(0.0f, 0.0f);
 }
 
@@ -454,12 +467,20 @@ void
 BetaGame::onEvent(GlfwMouseButton mouse) {
   static Picker    picker;
 
-  // TODO this should be an inverse transform...
   auto& cam = game_.entity("camera");
-  auto position = glm::vec2(mouse.x - roidrage::Display::getWidth()/2.0f, 
-                            mouse.y - roidrage::Display::getHeight()/2.0f);
-  position /= zoom;
-  position -= cam.get<Position>()->pos;
+  auto camModel  = cam.get<Transform>()->transform;
+  auto camProj   = cam.get<Projection>()->matrix;
+  auto modelView = camProj * camModel;
+  
+  auto mousePos = glm::vec3(mouse.x,
+                            roidrage::Display::getHeight() - mouse.y,
+                            0.0f);
+  auto viewport = glm::vec4(0.0f, 
+                            0.0f, 
+                            roidrage::Display::getWidth(), 
+                            roidrage::Display::getHeight());
+  auto world3   = glm::unProject(mousePos, camModel, camProj, viewport);
+  auto position = glm::vec2(world3.x, world3.y);
 
   if (mouse.button == GLFW_MOUSE_BUTTON_LEFT) {
     if (mouse.action == GLFW_PRESS) {
@@ -467,9 +488,6 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
 
       if (!mouse.mods & GLFW_MOD_SHIFT) {
         Selection::clear(); 
-        //if (cam.has<Track<Position>>()) {
-        //  cam.rem<Track<Position>>();
-        //}
       }
     }
     if (mouse.action == GLFW_RELEASE) {
@@ -490,7 +508,10 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
         } else {
           auto e = candidates.front();
           Selection::toggle(*e);
-          //cam.addOrReplace<Track<Position>>(e->get<Position>());
+          // TODO some sort of tracking...
+          //cam.get<Transform>()->parent = e->get<Transform>();
+          //cam.get<Position>()->pos = glm::vec2();
+          //cam.get<Orientation>()->apos = 0.0f;
         }
       }   
     }
@@ -515,25 +536,6 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
       auto h = candidates.front();
       if (!candidates.empty() && h != s) {
         moveTo(*s, *h);
-  /*
-        auto r1 = h->get<Position>()->pos - s->get<Position>()->pos;
-        //if(glm::length(s->get<Position>()->vel) > 0.0f) {
-        auto r2 = -1.2f * glm::length(h->get<Position>()->pos - position) * glm::normalize(r1);
-        glm::vec2 periapsis;
-        glm::vec2 apoapsis;
-        if (glm::length(r1) < glm::length(r2)) {
-          periapsis = r1;
-          apoapsis  = r2;
-        } else {
-          periapsis = r2;
-          apoapsis  = r1;
-        }
-        auto  e = std::abs((glm::length(apoapsis) - glm::length(periapsis))
-                         / (glm::length(apoapsis) + glm::length(periapsis)));
-        Log::debug("new orbit - Ra: % (%,%), Rp: % (%,%), e: %", 
-                   glm::length(apoapsis), apoapsis.x, apoapsis.y, glm::length(periapsis), periapsis.x, periapsis.y, e);
-        s->addOrReplace<Orbit>(periapsis, e, 0.0f, s, h);
-*/
       }
     }
     picker.reset();

@@ -239,11 +239,11 @@ static float zoom = 0.1f;
 struct Projection : public Component<Projection> {
   glm::mat4 matrix;
   Projection(float width, float height, float zoom = 0.1f) 
-    : matrix (glm::ortho((-width/2.0f / zoom), 
-                         (width/2.0f / zoom), 
-                         (height/2.0f / zoom), 
+    : matrix (glm::ortho((-width/2.0f  / zoom), 
+                         ( width/2.0f  / zoom), 
                          (-height/2.0f / zoom), 
-                          1.0f, -1.0f)) {}
+                         ( height/2.0f / zoom), 
+                          -1.0f,  1.0f)) {}
 };
 
 struct Pickable : boson::Component<Pickable> {
