@@ -105,7 +105,7 @@ struct Picker {
 
   void 
   testPickable(Pickable* s, Position* p, Radius* r) {
-    static const float paddingFactor = 2.0f;  
+    static const float paddingFactor = 3.0f;  
 
     auto& entity      = game_.entity(s->entity);
 
@@ -245,10 +245,10 @@ void updatePosition(Time* time, Position* pos) {
   }
 }
 
-void track(Track<Position>* t, Position* p) {
-  p->pos     = t->value->pos + glm::vec2(-100.0f, -100.0f);
+// This is super kludgy - we 
+void track(Track* t, Position* p) {
+  p->pos = t->pos->pos + t->offset;
 }
-
 
 void updateOrientation(Time* time, Orientation* o) {
   o->avel    += o->aacc    * float(time->vel);

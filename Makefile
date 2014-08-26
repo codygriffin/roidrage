@@ -50,13 +50,14 @@ include mak/staticlib.mak
 include mak/sharedlib.mak
 
 ROIDRAGE_CXXFLAGS    := -std=gnu++0x -O0 -g -DGLFW_INCLUDE_GLCOREARB -DGL_ERROR_CHECK -DGLM_FORCE_RADIANS
-ROIDRAGE_CXXFLAGS    += -Iinc/ -Iboson/inc -Ikernel/inc -Igl/inc -Iglm/ -Iglm/gtx -Iglm/gtc
+ROIDRAGE_CXXFLAGS    += -Iinc/ -Iboson/inc -Ikernel/inc -Iui/inc -Igl/inc -Iglm/ -Iglm/gtx -Iglm/gtc
 ROIDRAGE_OBJCXXFLAGS := -std=gnu++0x -O0 -g -x objective-c++
-ROIDRAGE_OBJCXXFLAGS += -Iinc/ -Iboson/inc -Ikernel/inc -Igl/inc -Iglm/ -Iglm/gtx -Iglm/gtc
+ROIDRAGE_OBJCXXFLAGS += -Iinc/ -Iboson/inc -Ikernel/inc -Iui/inc -Igl/inc -Iglm/ -Iglm/gtx -Iglm/gtc
 ROIDRAGE_LDFLAGS     := -lglfw3 
 ROIDRAGE_LDFLAGS     += -framework OpenGL -framework Cocoa -framework CoreVideo -framework IOKit
 ROIDRAGE_SRCS        := $(shell find gl     -name *.cpp) \
 												$(shell find kernel -name *.cpp) \
+												$(shell find ui     -name *.cpp) \
 												$(shell find boson  -name *.cpp) 
 
 # really dumb HACK
@@ -64,12 +65,12 @@ OBJCPP_SRCS          := src/AssetManager.mm
 
 #-------------------------------------------------------------------------------
 
-ALPHA_CXXFLAGS    := $(ROIDRAGE_CXXFLAGS) -Imain/inc
+ALPHA_CXXFLAGS    := $(ROIDRAGE_CXXFLAGS) -Ialpha/inc -Iold/inc
 alpha_OBJCXXFLAGS := $(ROIDRAGE_OBJCXXFLAGS)
 ALPHA_LDFLAGS     := $(ROIDRAGE_LDFLAGS)
 ALPHA_SRCS        := $(ROIDRAGE_SRCS) \
 										 $(shell find alpha -name *.cpp) \
-										 $(shell find main -name *.cpp) # This is a deprecated path - 
+										 $(shell find old  -name *.cpp) # This is a deprecated path - 
 																								    # everything should be moved 
 																								    # to more specific or more general dirs
 

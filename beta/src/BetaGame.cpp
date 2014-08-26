@@ -6,6 +6,7 @@
 
 #include "BetaGame.h"
 
+#include "Viewport.h"
 #include "Shader.h"
 #include "Program.h"
 #include "Framebuffer.h"
@@ -13,6 +14,7 @@
 #include "VertexBufferObject.h"
 
 #include "AssetManager.h"
+#include "ResourceManager.h"
 #include "Display.h"
 
 #include "Entity.h"
@@ -37,8 +39,12 @@ using namespace beta;
 
 //------------------------------------------------------------------------------
 
-static  System               game_;
-static  corvid::WorkQueue    gameQueue_;
+static System               game_;
+static corvid::WorkQueue    gameQueue_;
+static const float          quad[] = {-1.0f, -1.0f, 0.0f, 1.0f,  
+                                       1.0f, -1.0f, 1.0f, 1.0f,
+                                       1.0f,  1.0f, 1.0f, 0.0f, 
+                                      -1.0f,  1.0f, 0.0f, 0.0f};
 
 //------------------------------------------------------------------------------
 // Big hacks - these should be cleaned up and broken out into proper classes 
@@ -62,26 +68,25 @@ Entity& createIndicator(Entity& entity) {
   indicator.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                            FragmentShader("assets/gpu/selected.fp"));
   // TODO do we want Geometry, Textures and Programs to be components?
-  static const GLfloat pQuad[] = {1.0,  1.0, 1.0, 1.0,  1.0, -1.0, 1.0, 0.0,
-                                 -1.0, -1.0, 0.0, 0.0, -1.0,  1.0, 0.0, 1.0};
-  indicator.add<GlVbo>(16*sizeof(GLfloat), pQuad);
+  indicator.add<GlVbo>(16*sizeof(GLfloat), quad);
   return indicator;
 }
 
-Entity& createText(Entity& entity) {
+Entity& createText(Entity& entity, float x = 0.0f, float y = 0.0f) {
   auto& text = game_.entity();
   Log::debug("Created text[%]", text.name());
   text.add<Position>();
-  text.add<Track<Position>>(entity.get<Position>());
-  text.add<String>(entity.name(), 24.0f);
+  text.get<Position>()->pos = glm::vec2(x, y);
+  text.add<Track>(entity.get<Position>(), 
+                  glm::vec2(-entity.get<Radius>()->mag, 
+                             entity.get<Radius>()->mag + 40.0f));
   text.add<Transform>();
-  text.add<Color>(1.0f, 1.0f, 0.0f, 0.8f);
+  text.add<String>(entity.name(), 40.0f);
+  text.add<Color>(1.0f, 1.0f, 1.0f, 0.8f);
   text.add<GlProgram>(VertexShader  ("assets/gpu/char.vp"), 
                       FragmentShader("assets/gpu/char.fp"));
   // TODO do we want Geometry, Textures and Programs to be components?
-  static const GLfloat pQuad[] = {1.0,  1.0, 1.0, 1.0,  1.0, -1.0, 1.0, 0.0,
-                                 -1.0, -1.0, 0.0, 0.0, -1.0,  1.0, 0.0, 1.0};
-  text.add<GlVbo>(16*sizeof(GLfloat), pQuad);
+  text.add<GlVbo>(16*sizeof(GLfloat), quad);
   unsigned w_, h_;
   text.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/menlo24.png",    w_, h_).get());
   return text;
@@ -100,15 +105,12 @@ Entity& createShip(float x, float y, float r) {
   ship.add<Radius>(r);
   ship.add<Mass>(r*r*r);
   ship.add<Pickable>(ship.name());
+  ship.add<Moveable>();
   ship.add<Transform>();
   ship.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                       FragmentShader("assets/gpu/texture.fp"));
   // TODO do we want Geometry, Textures and Programs to be components?
   //
-  const GLfloat quad[] = {1.0,  1.0, 1.0, 1.0,
-                          1.0, -1.0, 1.0, 0.0,
-                         -1.0, -1.0, 0.0, 0.0,
-                         -1.0,  1.0, 0.0, 1.0};
   unsigned w_, h_;
   ship.add<GlVbo>(sizeof(quad), quad);
   ship.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/ship01.png",    w_, h_).get());
@@ -126,18 +128,15 @@ Entity& createBoid(float x, float y, float r) {
   ship.add<Radius>(r);
   ship.add<Mass>(r*r*r);
   ship.add<Pickable>(ship.name());
+  ship.add<Moveable>();
   ship.add<Transform>();
   ship.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                       FragmentShader("assets/gpu/texture.fp"));
   // TODO do we want Geometry, Textures and Programs to be components?
   //
-  const GLfloat quad[] = {1.0,  1.0, 1.0, 1.0,
-                          1.0, -1.0, 1.0, 0.0,
-                         -1.0, -1.0, 0.0, 0.0,
-                         -1.0,  1.0, 0.0, 1.0};
   unsigned w_, h_;
   ship.add<GlVbo>(sizeof(quad), quad);
-  ship.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/boid01.png",    w_, h_).get());
+  ship.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/boid01.png", w_, h_).get());
   return ship;
 }
 
@@ -152,6 +151,7 @@ Entity& createRoid(float x, float y, float r) {
   roid.add<Radius>(r);
   roid.add<HillSphere>(10.0f * r, roid.name());
   roid.add<Pickable>(roid.name());
+  roid.add<Moveable>();
   roid.add<Mass>(r*r*r);
   roid.add<Transform>();
   roid.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
@@ -164,10 +164,6 @@ Entity& createRoid(float x, float y, float r) {
 
   // TODO do we want Geometry, Textures and Programs to be components?
   //
-  const GLfloat quad[] = {1.0,  1.0, 1.0, 1.0,
-                          1.0, -1.0, 1.0, 0.0,
-                         -1.0, -1.0, 0.0, 0.0,
-                         -1.0,  1.0, 0.0, 1.0};
   unsigned w_, h_;
   roid.add<GlVbo>(sizeof(quad), quad);
   roid.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/astroid01.png",    w_, h_).get());
@@ -195,12 +191,6 @@ Entity& createMoon(float x, float y, float r) {
   });
 
 
-  // TODO do we want Geometry, Textures and Programs to be components?
-  //
-  const GLfloat quad[] = {1.0,  1.0, 1.0, 1.0,
-                          1.0, -1.0, 1.0, 0.0,
-                         -1.0, -1.0, 0.0, 0.0,
-                         -1.0,  1.0, 0.0, 1.0};
   unsigned w_, h_;
   moon.add<GlVbo>(sizeof(quad), quad);
   moon.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/moon01.png",    w_, h_).get());
@@ -224,12 +214,6 @@ Entity& createGasPlanet(float x, float y, float r) {
                       FragmentShader("assets/gpu/texture.fp"));
 
 
-  // TODO do we want Geometry, Textures and Programs to be components?
-  //
-  const GLfloat quad[] = {1.0,  1.0, 1.0, 1.0,
-                          1.0, -1.0, 1.0, 0.0,
-                         -1.0, -1.0, 0.0, 0.0,
-                         -1.0,  1.0, 0.0, 1.0};
   unsigned w_, h_;
   roid.add<GlVbo>(sizeof(quad), quad);
   roid.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/gas01.png",    w_, h_).get());
@@ -253,12 +237,6 @@ Entity& createStar(float x, float y, float r) {
                       FragmentShader("assets/gpu/texture.fp"));
 
 
-  // TODO do we want Geometry, Textures and Programs to be components?
-  //
-  const GLfloat quad[] = {1.0,  1.0, 1.0, 1.0,
-                          1.0, -1.0, 1.0, 0.0,
-                         -1.0, -1.0, 0.0, 0.0,
-                         -1.0,  1.0, 0.0, 1.0};
   unsigned w_, h_;
   roid.add<GlVbo>(sizeof(quad), quad);
   roid.add<GlTexture>(512, 512, Texture::RGBA, AssetManager::loadBitmap("assets/png/star01.png",    w_, h_).get());
@@ -294,16 +272,6 @@ BetaGame::BetaGame(Beta* pMachine)
 
   game_.registerEvent<events::Collision>();
 
-  auto& star = createStar(0.0f, 0.0f, 5000.0f);
-
-  auto& gas = createGasPlanet(0.0f, ~star*1.5f, 500.0f);
-  park(gas, star);
-  createText(gas);
-
-  auto& gas2 = createGasPlanet(0.0f, -~star*3.5f, 700.0f);
-  park(gas2, star, 3.5f);
-  createText(gas2);
-
   auto& cam = game_.entity("camera");
   cam.add<Projection>(roidrage::Display::getWidth(), roidrage::Display::getHeight(), 0.1);
   cam.add<Time>();
@@ -314,9 +282,19 @@ BetaGame::BetaGame(Beta* pMachine)
   auto& overlay = game_.entity("overlay");
   overlay.add<Projection>(roidrage::Display::getWidth(), roidrage::Display::getHeight(), 1.0);
 
+  auto& star = createStar(0.0f, 0.0f, 5000.0f);
+
+  auto& gas = createGasPlanet(0.0f, ~star*1.5f, 500.0f);
+  park(gas, star);
+  createText(gas);
+
+  auto& gas2 = createGasPlanet(0.0f, -~star*3.5f, 700.0f);
+  park(gas2, star, 3.5f);
+  createText(gas2);
+
   for (unsigned i = 0; i < 1; i++) {
-    auto& ship = createShip(gas.get<Position>()->pos.x + ~gas * 1.5f, gas.get<Position>()->pos.y, 20.0f);
-    park(ship, gas); 
+    auto& ship = createShip(gas.get<Position>()->pos.x + ~gas*3.0f, gas.get<Position>()->pos.y, 20.0f);
+    park(ship, gas, 3.0f); 
     createText(ship);
   }
 
@@ -330,10 +308,9 @@ BetaGame::BetaGame(Beta* pMachine)
   park(moon, gas);
   createText(moon);
 
-  auto& moon2 = createMoon(0.0f, gas2.get<Position>()->pos.y + ~gas*1.5f, 100.0f);
+  auto& moon2 = createMoon(0.0f, gas2.get<Position>()->pos.y + ~gas2*1.5f, 100.0f);
   park(moon2, gas2);
   createText(moon2);
-
 
   timerReactor_.setPeriodic(std::chrono::seconds(5), [&] () {
     gameQueue_.enqueue( [&] () {
@@ -467,20 +444,16 @@ void
 BetaGame::onEvent(GlfwMouseButton mouse) {
   static Picker    picker;
 
+  // unproject camera to get world coordinates 
   auto& cam = game_.entity("camera");
   auto camModel  = cam.get<Transform>()->transform;
   auto camProj   = cam.get<Projection>()->matrix;
   auto modelView = camProj * camModel;
-  
-  auto mousePos = glm::vec3(mouse.x,
-                            roidrage::Display::getHeight() - mouse.y,
-                            0.0f);
-  auto viewport = glm::vec4(0.0f, 
-                            0.0f, 
-                            roidrage::Display::getWidth(), 
-                            roidrage::Display::getHeight());
-  auto world3   = glm::unProject(mousePos, camModel, camProj, viewport);
-  auto position = glm::vec2(world3.x, world3.y);
+  auto mousePos  = glm::vec3(mouse.x,
+                             roidrage::Display::getHeight() - mouse.y,
+                             0.0f);
+  auto world3    = glm::unProject(mousePos, camModel, camProj, gl::Viewport::get());
+  auto position  = glm::vec2(world3);
 
   if (mouse.button == GLFW_MOUSE_BUTTON_LEFT) {
     if (mouse.action == GLFW_PRESS) {
@@ -508,10 +481,6 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
         } else {
           auto e = candidates.front();
           Selection::toggle(*e);
-          // TODO some sort of tracking...
-          //cam.get<Transform>()->parent = e->get<Transform>();
-          //cam.get<Position>()->pos = glm::vec2();
-          //cam.get<Orientation>()->apos = 0.0f;
         }
       }   
     }
@@ -521,20 +490,21 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
     picker.startBox(position);
     game_.exec(picker, &Picker::testHillSphere); 
     auto candidates = picker.query();
-    candidates.sort([&](Entity* a, Entity* b) -> bool {
+
+    // prioritize destination based on distance from click
+    // TODO: this isn't very good
+    candidates.sort([=](Entity* a, Entity* b) -> bool {
       float ra = glm::length(position - a->get<Position>()->pos);
       float rb = glm::length(position - b->get<Position>()->pos);
       return ra < rb;
     });
 
-    for (auto c : candidates) {
-      float rc = glm::length(position - c->get<Position>()->pos);
-    }
+    // move selected entities to destination
     for (auto kv : Selection::selected) {
       auto s = kv.first;
       //for (auto h : candidates) {
       auto h = candidates.front();
-      if (!candidates.empty() && h != s) {
+      if (!candidates.empty() && h != s && s->has<Moveable>()) {
         moveTo(*s, *h);
       }
     }

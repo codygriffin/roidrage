@@ -4,9 +4,8 @@
 // 
 //------------------------------------------------------------------------------
 
-#include <Button.h>
+#include <Label.h>
 #include <Display.h>
-#include <Systems.h>
 
 //------------------------------------------------------------------------------
 
@@ -14,36 +13,30 @@ using namespace roidrage;
 
 //------------------------------------------------------------------------------
 
-Button::Button(const std::string& text, std::function<void(void)> callback, float d) 
-  : text_(text) 
-  , callback_ (callback) {
+Label::Label(const std::string& text, float d) 
+  : text_(text) {
   labelSize_ = d * Display::getScale();
 }
 
-void
-Button::callback(std::function<void(void)> callback) {
-  callback_ = callback;
-}
 
-bool 
-Button::onTouch(const Touch& touch) {
-  if (touch.action == Touch::up) {
-    callback_();
-  }
-
-  return true;
-}
+//------------------------------------------------------------------------------
 
 void
-Button::onRender() {
-  renderTextOverlay(position_.x, 
+Label::onRender() {
+  /*
+  float textWidth = labelSize_ * text_.length();
+  const float c = 16.0f;
+  renderTextOverlay(position_.x - textWidth, 
                     position_.y, 
                     labelSize_, 
                     text_.c_str());
+  */
 }
 
+//------------------------------------------------------------------------------
+
 glm::vec2 
-Button::onLayout(Layout* pParent, glm::vec2 position) {
+Label::onLayout(Layout* pParent, glm::vec2 translation) {
   float textWidth = labelSize_ * text_.length();
   dimension_ = glm::vec2(textWidth, labelSize_ * 4);
   return dimension_;

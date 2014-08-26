@@ -8,19 +8,6 @@
 #include "Params.h"
 #include "Log.h"
 
-// Structure
-#include "Corvid.h"
-#include "Relation.h"
-#include "Population.h"
-
-// Entities
-#include "PewPew.h"
-#include "Ship.h"
-#include "Bonus.h"
-#include "Roid.h"
-#include "Text.h"
-#include "Background.h"
-
 using namespace pronghorn;
 using namespace roidrage;
 

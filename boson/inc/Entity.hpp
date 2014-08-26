@@ -88,9 +88,9 @@ void
 Entity::replace(Args...args) {
   auto item = components_.find(index<T>());
   if (item != components_.end()) {
-    //delete item->second;
+    // No allocation - just destruct and placement-new
+    static_cast<T*>(item->second)->~T();
     new (item->second) T(args...);
-    //system_.indexEntity(*this);
     return;
   }
 

@@ -6,7 +6,6 @@
 
 #include <Selector.h>
 #include <Display.h>
-#include <Systems.h>
 #include <sstream>
 
 //------------------------------------------------------------------------------
@@ -65,6 +64,7 @@ Selector::onTouch(const Touch& touch) {
 
 void
 Selector::onRender() {
+  /*
   float v = (float)value_ / ((float)numChoices_ - 1);
   // LinearIndicator
   const float b = 4.0f; 
@@ -89,6 +89,7 @@ Selector::onRender() {
                     position_.y, 
                     selectorHeight_, 
                     label_.c_str());
+  */
 }
 
 //------------------------------------------------------------------------------

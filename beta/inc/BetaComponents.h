@@ -17,10 +17,6 @@
 
 namespace beta { 
 
-struct Glow {
-  float glow;
-};
-
 struct TimeDelta : public boson::Component<TimeDelta> {
   int ms;
 };
@@ -71,14 +67,6 @@ struct Color  : public boson::Component<Color> {
   glm::vec4 color;
 };
 
-struct Charge {
-  static constexpr float unit = -3.6e-8f;
-  Charge(float r) 
-    : mag(r) {
-  }
-  float mag;
-};
-
 struct Mass : public boson::Component<Mass> {
   static constexpr float unit = 5.0e-2f;
   Mass(float r) 
@@ -103,62 +91,6 @@ struct Collision {
   } 
   glm::vec2 displacement;
   float     boundary;
-};
-
-struct Expiration {
-  bool isExpired() {
-    return ageMs > expiresInMs;
-  }
-
-  float expiration() {
-    return (float)ageMs/(float)expiresInMs;
-  }
-
-  void age(unsigned ms) {
-    ageMs += ms;
-  }
-
-  void reset() {
-    ageMs = 0;
-  }
-
-  Expiration(unsigned e) 
-    : expiresInMs(e) {
-    reset();
-  }
-
-  unsigned expiresInMs;
-  unsigned ageMs;
-};
-
-struct Thrust {
-  static constexpr float unit = -9.0e-6f;
-  glm::vec2          vec;
-  Thrust(float x, float y) 
-    : vec(x, y) {
-  }
-};
-
-struct Attitude {
-  static constexpr float unit = -9.0e-6f;
-  float          dir;
-  Attitude(float d) 
-    : dir(d) {
-  }
-};
-
-struct Shield {
-  float mag;
-  Shield(float m) 
-    : mag(m) {
-  }
-};
-
-struct Fuel {
-  float mag;
-  Fuel(float m) 
-    : mag(m) {
-  }
 };
 
 struct GlVbo : boson::Component<GlVbo> {
@@ -199,15 +131,17 @@ struct Transform : boson::Component<Transform> {
 
     return 1 + parent->depth();
   } 
+
+  // Some way to order transforms
   bool operator<(const Transform& rhs) const {
     return depth() > rhs.depth();
   }
 };
 
-template <typename T>
-struct Track : boson::Component<Track<T>> {
-  T* value;
-  Track(T* v = 0) : value(v) {}
+struct Track : boson::Component<Track> {
+  Position* pos;
+  glm::vec2 offset;
+  Track(Position* p, const glm::vec2& o = glm::vec2()) : pos(p), offset(o) {}
 };
 
 struct Time : Component<Time> {
@@ -279,6 +213,7 @@ struct FlightPlan : boson::Component<FlightPlan> {
   FlightPlan(const std::deque<std::function<void()>>& m) : maneuvers(m) {}
 };
 
+BOSON_TAG(Moveable);
 
 //------------------------------------------------------------------------------
 

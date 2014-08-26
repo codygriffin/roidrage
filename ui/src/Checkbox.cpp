@@ -4,9 +4,8 @@
 // 
 //------------------------------------------------------------------------------
 
-#include <Slider.h>
+#include <Checkbox.h>
 #include <Display.h>
-#include <Systems.h>
 #include <sstream>
 
 //------------------------------------------------------------------------------
@@ -15,82 +14,78 @@ using namespace roidrage;
 
 //------------------------------------------------------------------------------
 
-Slider::Slider(const std::string& label, std::function<void(float)> callback, float v, float d, float w) 
+Checkbox::Checkbox(const std::string& label, std::function<void(bool)> callback,bool selection, float d, float w) 
   : label_    (label) 
   , callback_ (callback) 
-  , value_    (v) {
-  sliderHeight_ = d * Display::getScale();
-  sliderWidth_  = w * Display::getScale();
+  , selection_ (selection) {
+  checkboxHeight_ = d * Display::getScale();
+  checkboxWidth_  = w * Display::getScale();
 }
 
 //------------------------------------------------------------------------------
 
 void
-Slider::callback(std::function<void(float)> callback) {
+Checkbox::callback(std::function<void(bool)> callback) {
   callback_ = callback;
 }
 
 //------------------------------------------------------------------------------
 
 glm::vec2 
-Slider::onLayout(Layout* pParent, glm::vec2 translation) {
-  dimension_ = glm::vec2(sliderWidth_, sliderHeight_ * 4);
+Checkbox::onLayout(Layout* pParent, glm::vec2 translation) {
+
+  dimension_ = glm::vec2(checkboxWidth_, checkboxHeight_ * 4);
   return dimension_;
 }
 
 //------------------------------------------------------------------------------
 
 bool 
-Slider::onTouch(const Touch& touch) {
-  const float x = touch.xs[touch.index];
-  const float y = touch.ys[touch.index];
-
-  value_ = normalizeX(x);
-  callback_(value_);
+Checkbox::onTouch(const Touch& touch) {
+  if (touch.action == Touch::down) {
+    selection_ = ! selection_;
+    callback_(selection_);
+  }
   return true;
 }
 
 //------------------------------------------------------------------------------
 
 void
-Slider::onRender() {
-  // LinearIndicator
+Checkbox::onRender() {
+  /*
   const float b = 4.0f; 
   SolidQuad  shield(position_.x, 
-                    position_.y + sliderHeight_/2.0f, 
-                    sliderWidth_ * value_, 
-                    sliderHeight_);
+                    position_.y + checkboxHeight_/2.0f, 
+                    checkboxWidth_, 
+                    checkboxHeight_);
 
   SolidQuad  shieldBg(position_.x - b, 
-                      position_.y  + sliderHeight_/2.0f - b, 
-                      sliderWidth_ + (b * 2.0f), 
-                      sliderHeight_+ (b * 2.0f));
+                      position_.y + checkboxHeight_/2.0f - b, 
+                      checkboxWidth_ + (b * 2.0f), 
+                      checkboxHeight_ + (b * 2.0f));
 
   // TODO shield color quantization expression
   shield.getRenderPass().color = glm::vec4(0.42f, 0.42f, 0.85, 0.8f);
   shieldBg.getRenderPass().color = glm::vec4(0.07f, 0.07f, 0.07, 0.8f);
 
   shieldBg.render(RenderState::pCam_.get());
-  shield.render(RenderState::pCam_.get());
+  if (selection_) {
+    shield.render(RenderState::pCam_.get());
+  }
 
   renderTextOverlay(position_.x, 
                     position_.y, 
-                    sliderHeight_, 
+                    checkboxHeight_, 
                     label_.c_str());
+  */
 }
 
 //------------------------------------------------------------------------------
 
-float 
-Slider::getValue() const {
-  return value_;
-}
-
-//------------------------------------------------------------------------------
-
-float 
-Slider::normalizeX(float x) {
-  return (x - position_.x) / sliderWidth_;
+bool
+Checkbox::checked() const {
+  return selection_;
 }
 
 //------------------------------------------------------------------------------

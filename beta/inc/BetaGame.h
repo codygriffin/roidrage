@@ -15,6 +15,10 @@
 #include "TimerReactor.h"
 #endif
 
+#ifndef INCLUDED_LAYOUT_H
+#include "Layout.h"
+#endif
+
 #ifndef INCLUDED_RANDOM
 #include <random>
 #define INCLUDED_RANDOM
@@ -42,6 +46,7 @@ private:
 
   // Queue of work to be executed in game-context
   corvid::TimerReactor timerReactor_;
+  roidrage::Layout     layout_;
 };
 
 //------------------------------------------------------------------------------
