@@ -26,12 +26,12 @@ struct Label : public Layout {
   Label(const std::string& text, float d = 12.0f);
 
 protected:
-  virtual void onRender();
+  virtual void onRender(glm::mat4& proj, glm::vec2& offset);
   virtual glm::vec2 onLayout(Layout* pLayout, glm::vec2 trans);
   
 private:
   std::string text_;
-  float labelSize_;
+  float       labelSize_;
 };
 
 //------------------------------------------------------------------------------

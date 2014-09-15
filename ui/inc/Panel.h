@@ -1,21 +1,11 @@
 //------------------------------------------------------------------------------
 //
-// Copyright (C) 2013 Cody Griffin (cody.m.griffin@gmail.com)
+// Copyright (C) 2014 Cody Griffin (cody.m.griffin@gmail.com)
 // 
 //------------------------------------------------------------------------------
 
-#ifndef INCLUDED_BUTTON_H
-#define INCLUDED_BUTTON_H
-
-#ifndef INCLUDED_STRING
-#include <string>
-#define INCLUDED_STRING
-#endif
-
-#ifndef INCLUDED_FUNCTIONAL
-#include <functional>
-#define INCLUDED_FUNCTIONAL
-#endif
+#ifndef INCLUDED_PANEL_H
+#define INCLUDED_PANEL_H
 
 #ifndef INCLUDED_LAYOUT_H
 #include <Layout.h>
@@ -23,31 +13,28 @@
 
 //------------------------------------------------------------------------------
 
-namespace roidrage { 
+namespace ui { 
 
 //------------------------------------------------------------------------------
 
-struct Button : public Layout {
-  typedef std::function<void(beta::GlfwMouseButton mouse)> Callback;
-  Button(const std::string& text, Callback callback, float f = 12.0f);
-
+struct Panel : public roidrage::Layout {
+  Panel(const glm::vec4& size, 
+        const glm::vec4& color = glm::vec4(0.6f, 0.7f, 0.7f, 0.6f));
+  
 protected:
-  virtual void onRender(glm::mat4& proj, glm::vec2& offset);
-
-
+  virtual void      onRender();
+  virtual void      onRender(glm::mat4& proj, glm::vec2& offset); 
   virtual glm::vec2 onLayout(Layout* pLayout, glm::vec2 trans);
   virtual bool      onEvent(beta::GlfwMouseButton mouse);
-  
-private:
-  Callback callback_;
 
-  std::string               text_;
-  float                     labelSize_;
+private:
+  //glm::vec4 size_;
+  glm::vec4 color_;
 };
 
 //------------------------------------------------------------------------------
 
-} // namespace roidrage
+} // namespace ui
 
 //------------------------------------------------------------------------------
 

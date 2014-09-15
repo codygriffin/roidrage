@@ -22,6 +22,8 @@
 #define INCLUDED_MEMORY
 #endif
 
+#include "BetaEvents.h"
+
 //------------------------------------------------------------------------------
 
 namespace roidrage { 
@@ -52,25 +54,28 @@ struct Touch {
 
 struct Layout {
   Layout();
-  Layout(unsigned width, unsigned height);
-  Layout(glm::vec2 translation, glm::vec2 scale = glm::vec2(1.0f, 1.0f));
+  Layout(float x, float y, float w, float h);
   
   void add(Layout* pLayout);
   void clear();
 
   void render();
+  void render(glm::mat4 proj, glm::vec2 offset);
   bool touch(const Touch& touch);
+  bool event(beta::GlfwMouseButton mouse);
 
-  void layout();
 
   glm::vec2 dimension() const;
-  void      dimension(unsigned width, unsigned height);
-
   glm::vec2 position() const;
+
+  void      layout();
   glm::vec2 layout(Layout* pParent, glm::vec2 position);
  
-  virtual bool onTouch(const Touch& touch)       { return false; };
-  virtual void onRender()                                 {};
+  // Events - integrate w/ StateMachine/EventRegistrar
+  virtual bool onTouch(const Touch& touch)          { return false; };
+  virtual void onRender()                           {};
+  virtual void onRender(glm::mat4& proj, glm::vec2& offset)                           {};
+  virtual bool      onEvent(beta::GlfwMouseButton mouse);
   virtual glm::vec2 onLayout(Layout* pParent, glm::vec2 position);
 
   bool  isHit(float x, float y);

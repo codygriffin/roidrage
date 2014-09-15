@@ -44,7 +44,7 @@ using namespace roidrage;
 
 RoidRageSettings::RoidRageSettings(RoidRage* pMachine) 
   : RoidRage::State(pMachine)
-  , settingsLayout_(Display::getWidth(), Display::getHeight()) {
+  , settingsLayout_(0.0f, 0.0f, Display::getWidth(), Display::getHeight()) {
 
   //settingsLayout_.add(new Label("audio"));
   /*
@@ -99,7 +99,7 @@ RoidRageSettings::RoidRageSettings(RoidRage* pMachine)
 
   settingsLayout_.add(new Label(""));
   settingsLayout_.add(new Button("back",   
-                                  [&]() {
+                                  [&](beta::GlfwMouseButton mouse) {
                                     getMachine()->transition<RoidRageMenu>(false);
                                   }));
 

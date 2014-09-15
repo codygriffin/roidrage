@@ -65,7 +65,7 @@ OBJCPP_SRCS          := src/AssetManager.mm
 
 #-------------------------------------------------------------------------------
 
-ALPHA_CXXFLAGS    := $(ROIDRAGE_CXXFLAGS) -Ialpha/inc -Iold/inc
+ALPHA_CXXFLAGS    := $(ROIDRAGE_CXXFLAGS) -Ialpha/inc -Ibeta/inc -Iold/inc
 alpha_OBJCXXFLAGS := $(ROIDRAGE_OBJCXXFLAGS)
 ALPHA_LDFLAGS     := $(ROIDRAGE_LDFLAGS)
 ALPHA_SRCS        := $(ROIDRAGE_SRCS) \

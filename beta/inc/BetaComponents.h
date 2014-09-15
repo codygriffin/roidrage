@@ -17,10 +17,6 @@
 
 namespace beta { 
 
-struct TimeDelta : public boson::Component<TimeDelta> {
-  int ms;
-};
-
 struct Position : public boson::Component<Position> {
   glm::vec2 pos;
   float     apos;
@@ -147,7 +143,7 @@ struct Track : boson::Component<Track> {
 struct Time : Component<Time> {
   float pos;
   float vel;
-  Time() : pos(0), vel(0) {}
+  Time() : pos(glfwGetTime()), vel(0.0f) {}
 };
 
 struct Target : public Component<Target> {

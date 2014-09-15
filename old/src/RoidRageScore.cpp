@@ -43,7 +43,7 @@ using namespace roidrage;
 
 RoidRageScore::RoidRageScore(RoidRage* pMachine) 
   : RoidRage::State(pMachine)
-  , scoreLayout_(Display::getWidth(), Display::getHeight()) 
+  , scoreLayout_(0.0f, 0.0f, Display::getWidth(), Display::getHeight()) 
   , first_ (1) 
   , page_  (0)  
   , max_   (100) {

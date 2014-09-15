@@ -32,6 +32,8 @@
 
 #include "Log.h"
 
+#include "Panel.h"
+
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
@@ -45,15 +47,19 @@ using namespace roidrage;
 
 RoidRageMenu::RoidRageMenu(RoidRage* pMachine, bool populateRoids) 
   : RoidRage::State(pMachine)
-  , menuLayout_(Display::getWidth(), Display::getHeight()) {
+  , menuLayout_(0.0f, 0.0f, Display::getWidth(), Display::getHeight()) {
 
-  menuLayout_.add(new Button("classic",  []() {pRoidRage->transition<RoidRageGame>(false);}));
-  menuLayout_.add(new Button("survival", []() {pRoidRage->transition<RoidRageGameSurvival>();}));
-  menuLayout_.add(new Button("settings", []() {pRoidRage->transition<RoidRageSettings>();}));
+  auto panel = new ui::Panel(glm::vec4(100.0f, 100.0f, 400.0f, 400.0f),
+                             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+  panel->add(new Label("new menu", 24.0f));
+  panel->add(new Button("classic",  [](beta::GlfwMouseButton mouse) {pRoidRage->transition<RoidRageGame>(false);}, 24.0f));
+  panel->add(new Button("survival", [](beta::GlfwMouseButton mouse) {pRoidRage->transition<RoidRageGameSurvival>();}, 24.0f));
+  panel->add(new Button("settings", [](beta::GlfwMouseButton mouse) {pRoidRage->transition<RoidRageSettings>();}, 24.0f));
   //menuLayout_.add(new Button("score",    []() {pRoidRage->transition<RoidRageScore>();}));
-  menuLayout_.add(new Button("quit",     []() {pRoidRage->transition<ConfirmQuit>();}));
+  panel->add(new Button("quit",     [](beta::GlfwMouseButton mouse) {pRoidRage->transition<ConfirmQuit>();}, 24.0f));
 
-  menuLayout_.layout(0, glm::vec2(3.0f*Display::getWidth()/4.0f, Display::getHeight()/3.0f));
+  menuLayout_.add(panel);
+  menuLayout_.layout();
 
   pRoidRage->population.clear<Background*>();
   pRoidRage->population.clear<Ship*>();
@@ -98,14 +104,23 @@ RoidRageMenu::onEvent(Tick tick) {
   // Render our bits
   pRoidRage->population.visit(&renderOrtho); 
   
-  menuLayout_.render();
+  auto projection = glm::ortho(0.0f, 
+                               roidrage::Display::getWidth(), 
+                              -roidrage::Display::getHeight(), 
+                               0.0f, 
+                              -1.0f,  1.0f);
+  menuLayout_.render(projection, glm::vec2());
 }
 
 //------------------------------------------------------------------------------
 
 void 
 RoidRageMenu::onEvent(Touch touch) {
-  menuLayout_.touch(touch);
+  beta::GlfwMouseButton mouse;
+  mouse.x = touch.xs[0];
+  mouse.y = touch.ys[0];
+  Log::debug("touch: %, %", mouse.x, mouse.y);
+  menuLayout_.event(mouse);
 }
 
 //------------------------------------------------------------------------------
@@ -119,13 +134,13 @@ RoidRageMenu::onEvent(AndroidBack back) {
 
 ConfirmQuit::ConfirmQuit(RoidRage* pMachine) 
   : RoidRageMenu(pMachine, false) 
-  , menuLayout_ (Display::getWidth(), Display::getHeight()) {
+  , menuLayout_ (300.0f, 300.0f, Display::getWidth(), Display::getHeight()) {
 
-  menuLayout_.add(new Label("quitting?"));
-  menuLayout_.add(new Button("yes", []() {pRoidRage->transition<Terminate>();}));
-  menuLayout_.add(new Button("no",  []() {pRoidRage->transition<RoidRageMenu>(true);}));
+  menuLayout_.add(new Label("quitting?", 24.0f));
+  menuLayout_.add(new Button("yes", [](beta::GlfwMouseButton mouse) {pRoidRage->transition<Terminate>();}, 24.0f));
+  menuLayout_.add(new Button("no",  [](beta::GlfwMouseButton mouse) {pRoidRage->transition<RoidRageMenu>(true);}, 24.0f));
 
-  menuLayout_.layout(0, glm::vec2(1.0f*Display::getWidth()/4.0f, Display::getHeight()/3.0f));
+  menuLayout_.layout();
 }
 
 //------------------------------------------------------------------------------
@@ -138,14 +153,24 @@ ConfirmQuit::onEvent(Tick tick) {
   bg.getRenderPass().color = glm::vec4(0.0f, 0.0f, 0.0f, 0.5f);
   renderOverlay(&bg);
 
-  menuLayout_.render();
+  auto projection = glm::ortho(0.0f, 
+                               roidrage::Display::getWidth(), 
+                              -roidrage::Display::getHeight(), 
+                               0.0f, 
+                              -1.0f,  1.0f);
+  menuLayout_.render(projection, glm::vec2());
 }
 
 //------------------------------------------------------------------------------
 
 void 
 ConfirmQuit::onEvent(Touch touch) {
-  menuLayout_.touch(touch);
+  //menuLayout_.touch(touch);
+  beta::GlfwMouseButton mouse;
+  mouse.x = touch.xs[0];
+  mouse.y = touch.ys[0];
+  Log::debug("touch: %, %", mouse.x, mouse.y);
+  menuLayout_.event(mouse);
 }
 
 //------------------------------------------------------------------------------
@@ -159,11 +184,11 @@ ConfirmQuit::onEvent(AndroidBack back) {
 
 ConfirmNewGame::ConfirmNewGame(RoidRage* pMachine) 
   : RoidRageMenu(pMachine, false) 
-  , menuLayout_ (glm::vec2(0.5f*Display::getWidth(), 0.25f*Display::getHeight())) {
+  , menuLayout_ (0.0f, 0.0f, 0.5f*Display::getWidth(), 0.25f*Display::getHeight()) {
 
   menuLayout_.add(new Label("starting over?"));
-  menuLayout_.add(new Button("yes", []() {pRoidRage->transition<RoidRageGame>(true);}));
-  menuLayout_.add(new Button("no",  []() {pRoidRage->transition<RoidRageMenu>(true);}));
+  menuLayout_.add(new Button("yes", [](beta::GlfwMouseButton mouse) {pRoidRage->transition<RoidRageGame>(true);}));
+  menuLayout_.add(new Button("no",  [](beta::GlfwMouseButton mouse) {pRoidRage->transition<RoidRageMenu>(true);}));
 
   menuLayout_.layout();
 }
@@ -179,14 +204,24 @@ ConfirmNewGame::onEvent(Tick tick) {
   bg.getRenderPass().color = glm::vec4(0.0f, 0.0f, 0.0f, 0.5f);
   renderOverlay(&bg);
 
-  menuLayout_.render();
+  auto projection = glm::ortho(0.0f, 
+                               roidrage::Display::getWidth(), 
+                              -roidrage::Display::getHeight(), 
+                               0.0f, 
+                              -1.0f,  1.0f);
+  menuLayout_.render(projection, glm::vec2());
 }
 
 //------------------------------------------------------------------------------
 
 void 
 ConfirmNewGame::onEvent(Touch touch) {
-  menuLayout_.touch(touch);
+  //menuLayout_.touch(touch);
+  beta::GlfwMouseButton mouse;
+  mouse.x = touch.xs[0];
+  mouse.y = touch.ys[0];
+  Log::debug("touch: %, %", mouse.x, mouse.y);
+  menuLayout_.event(mouse);
 }
 
 //------------------------------------------------------------------------------

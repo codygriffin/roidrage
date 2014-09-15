@@ -1,5 +1,6 @@
 
 Entity& createIndicator(Entity& e);
+
 struct Selection {
   static void clear(){
     for (auto kv : selected) {
@@ -344,21 +345,27 @@ flightControl(Position* p, Mass* m, Orbit* o, Orientation *b) {
   auto dir   = glm::normalize(d);
   auto r     = glm::length(d);
   auto e     = o->eccentricity;
-  auto ra = glm::length(o->periapsis) * (1.0f + e)/(1.0f - e);
   auto rp    = o->periapsis + o->focus->get<Position>()->pos;
 
   const float pi = 3.14159f;
 
-
   float u     = Mass::unit*o->focus->get<Mass>()->mag;
   float y     = glm::dot(dir, glm::normalize(o->periapsis));
+
+  // clamp so acos doesn't throw a fit
   if (y > 1.0f) y =  1.0f;
   if (y <-1.0f) y = -1.0f;
+
   float theta = acos(y);
+
+  // sorta like the cross product...
   float l     = dir.x*o->periapsis.y - dir.y*o->periapsis.x;
+
   if (l > 0.0f) {
     theta = 2.0f * pi - theta;
   }
+  
+  // wrap around
   if (theta > 2.0f * pi) theta -= 2.0f * pi;
   if (theta < 0.0f)      theta += 2.0f * pi;
 
@@ -367,11 +374,12 @@ flightControl(Position* p, Mass* m, Orbit* o, Orientation *b) {
   auto  normalDirection = glm::normalize(glm::vec2(d.y, -d.x));
   auto  radialDirection = glm::normalize(d);
 
-  p->vel = radialDirection * k * e * sinf(theta)
-         + normalDirection * k * (1.0f + e * cosf(theta))
-         + o->focus->get<Position>()->vel;
+  p->vel  = radialDirection  * k *         e * sinf(theta)
+          + normalDirection  * k * (1.0f + e * cosf(theta))
+          + o->focus->get<Position>()->vel;
 
-  b->apos = atan2(dir.y, dir.x) * 360.0f/(2.0f*pi) + 90.0f;
+
+  p->apos = atan2(dir.y, dir.x) * 360.0f/(2.0f*pi) + 90.0f;
 
   if (glm::length(p->vel) > 1e13) {
     throw std::runtime_error("runaway!");

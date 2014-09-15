@@ -11,6 +11,10 @@ float radiusOf(Entity* pEntity) {
   return pEntity->get<Radius>()->mag;
 }
 
+//------------------------------------------------------------------------------
+// Some orbital some pre-programmed orbital maneuvers 
+
+
 // Creates adds a parking orbit to entity around center
 // radius us just 1.14 * the radius of center
 // TODO: barycentric orbits
@@ -21,9 +25,9 @@ void park(Entity& entity, Entity& center, float r = 1.5f) {
   Log::debug("new parking orbit for % around % - radius: %",
              entity.name(), center.name(),  ~center*r);
 
-  
   Entity* c = &center;
   Entity* e = &entity;
+  
   entity.addOrReplace<Goal>([=](){
     float p = radiusOf(c)*r;
     float d = (p - glm::length((*c) - (*e)))/p;

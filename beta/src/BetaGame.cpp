@@ -23,6 +23,10 @@
 #include "Log.h"
 #include "WorkQueue.h"
 
+#include "Panel.h"
+#include "Button.h"
+#include "Label.h"
+
 #include <iterator>
 #include <algorithm>
 #include <sstream>
@@ -243,11 +247,67 @@ Entity& createStar(float x, float y, float r) {
   return roid;
 }
 
-
 //------------------------------------------------------------------------------
+
+ui::Panel* buildPlanetMenu(Entity& planet) {
+  auto panel = new ui::Panel(glm::vec4(100.0f, 100.0f, 400.0f, 400.0f),
+                             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+  
+  panel->add(new roidrage::Label(planet.name(), 24.0f)); 
+  panel->add(new roidrage::Button("spawn ship", 
+    [&](beta::GlfwMouseButton mouse) {
+      if (mouse.button == GLFW_MOUSE_BUTTON_LEFT && 
+         mouse.action == GLFW_PRESS) {
+        auto pos = planet.get<Position>()->pos;
+        auto r   = 1.0f + (rand() % 100)/100.0f; 
+        auto& ship = createShip(r * ~planet + pos.x, pos.y, 100.0f);
+        park(ship, planet, r);
+        createText(ship);
+      }
+    }
+  , 24.0f));
+  panel->add(new roidrage::Button("spawn roid", 
+    [&](beta::GlfwMouseButton mouse) {
+      if (mouse.button == GLFW_MOUSE_BUTTON_LEFT && 
+         mouse.action == GLFW_PRESS) {
+        auto pos = planet.get<Position>()->pos;
+        auto r   = 2.0f + (rand() % 100)/100.0f; 
+        auto& ship = createRoid(r * ~planet + pos.x, pos.y, 100.0f);
+        park(ship, planet, r);
+        createText(ship);
+      }
+    }
+  , 24.0f));
+  panel->add(new roidrage::Button("spawn moon", 
+    [&](beta::GlfwMouseButton mouse) {
+      if (mouse.button == GLFW_MOUSE_BUTTON_LEFT && 
+         mouse.action == GLFW_PRESS) {
+        auto pos = planet.get<Position>()->pos;
+        auto r   = 3.0f + (rand() % 100)/100.0f; 
+        auto& ship = createMoon(r * ~planet + pos.x, pos.y, 100.0f);
+        park(ship, planet, r);
+        createText(ship);
+      }
+    }
+  , 24.0f));
+  panel->add(new roidrage::Button("spawn planet", 
+    [&](beta::GlfwMouseButton mouse) {
+      if (mouse.button == GLFW_MOUSE_BUTTON_LEFT && 
+         mouse.action == GLFW_PRESS) {
+        auto pos = planet.get<Position>()->pos;
+        auto r   = 4.0f + (rand() % 1000)/100.0f; 
+        auto& ship = createGasPlanet(r * ~planet + pos.x, pos.y, 300.0f + rand() % 800);
+        park(ship, planet, r);
+        createText(ship);
+      }
+    }
+  , 24.0f));
+  return panel;
+}
 
 BetaGame::BetaGame(Beta* pMachine) 
   : Beta::State(pMachine) 
+  , layout_(0.0f, 0.0f, roidrage::Display::getWidth(), roidrage::Display::getHeight())
 { 
   game_.registerIndex(updateTime);
 
@@ -276,7 +336,7 @@ BetaGame::BetaGame(Beta* pMachine)
   cam.add<Projection>(roidrage::Display::getWidth(), roidrage::Display::getHeight(), 0.1);
   cam.add<Time>();
   cam.add<Position>();
-  cam.add<Orientation>();
+  //cam.add<Orientation>();
   cam.add<Transform>();
 
   auto& overlay = game_.entity("overlay");
@@ -298,12 +358,6 @@ BetaGame::BetaGame(Beta* pMachine)
     createText(ship);
   }
 
-  for (unsigned i = 0; i < 5; i++) {
-    auto& roid = createRoid(0.0f, ~star * 1.5f, 40.0f + rand() % 40);
-    park(roid, star);
-    createText(roid);
-  }
-
   auto& moon = createMoon(0.0f, gas.get<Position>()->pos.y + ~gas*1.5f, 100.0f);
   park(moon, gas);
   createText(moon);
@@ -316,6 +370,10 @@ BetaGame::BetaGame(Beta* pMachine)
     gameQueue_.enqueue( [&] () {
     });
   });
+
+  layout_.clear();
+  layout_.add(buildPlanetMenu(gas));
+  layout_.layout();
 }
 
 //------------------------------------------------------------------------------
@@ -352,6 +410,13 @@ BetaGame::onEvent(Tick tick) {
   game_.exec(renderSolid); 
   game_.exec(renderTextured); 
   game_.exec(renderText); 
+
+  auto projection = glm::ortho(0.0f, 
+                               roidrage::Display::getWidth(), 
+                              -roidrage::Display::getHeight(), 
+                               0.0f, 
+                              -1.0f,  1.0f);
+  layout_.render(projection, glm::vec2());
 
   // execute actions 'scheduled' for this tick
   while (gameQueue_.work());
@@ -444,6 +509,8 @@ void
 BetaGame::onEvent(GlfwMouseButton mouse) {
   static Picker    picker;
 
+  if (layout_.event(mouse)) return;
+
   // unproject camera to get world coordinates 
   auto& cam = game_.entity("camera");
   auto camModel  = cam.get<Transform>()->transform;
@@ -457,6 +524,7 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
 
   if (mouse.button == GLFW_MOUSE_BUTTON_LEFT) {
     if (mouse.action == GLFW_PRESS) {
+
       picker.startBox(position);
 
       if (!mouse.mods & GLFW_MOD_SHIFT) {
@@ -481,6 +549,9 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
         } else {
           auto e = candidates.front();
           Selection::toggle(*e);
+          layout_.clear();
+          layout_.add(buildPlanetMenu(*e));
+          layout_.layout();
         }
       }   
     }
