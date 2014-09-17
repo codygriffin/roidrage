@@ -559,8 +559,9 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
 
   else if (mouse.button == GLFW_MOUSE_BUTTON_RIGHT && mouse.action == GLFW_PRESS) {
     picker.startBox(position);
-    game_.exec(picker, &Picker::testHillSphere); 
+    game_.exec(picker, &Picker::testPickable); 
     auto candidates = picker.query();
+    Log::debug("picking moveTo candidate");
 
     // prioritize destination based on distance from click
     // TODO: this isn't very good
@@ -570,12 +571,16 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
       return ra < rb;
     });
 
+
     // move selected entities to destination
     for (auto kv : Selection::selected) {
       auto s = kv.first;
       //for (auto h : candidates) {
       auto h = candidates.front();
-      if (!candidates.empty() && h != s && s->has<Moveable>()) {
+      Log::debug("do we have a candidate");
+      if (!candidates.empty() && h != s) {
+      //if (!candidates.empty() && h != s && s->has<Moveable>()) {
+        Log::debug("moving to %", h->name());
         moveTo(*s, *h);
       }
     }

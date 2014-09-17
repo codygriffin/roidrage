@@ -89,9 +89,14 @@ void transfer(Entity& entity, Entity& dest) {
   });
 }
 
+//------------------------------------------------------------------------------
+// compose orbital maneuvers into a cohesive plan
+
 void moveTo(Entity& entity, Entity& goal) {
   auto current = &entity;
+  // Starting at our entity
   std::deque<Entity*> src = {&entity};
+  // work our way up through the orbital tree
   while (current) {
     if (current->has<Orbit>()) {
       auto next = current->get<Orbit>()->focus;
@@ -101,8 +106,11 @@ void moveTo(Entity& entity, Entity& goal) {
       current = 0;
     }
   }
+  // Forget about this path
 
+  // starting at the goal
   current = &goal;
+  // work our way back up through the orbital tree
   std::deque<Entity*> dst = {&goal};
   while (current) {
     if (current->has<Orbit>()) {
@@ -114,6 +122,7 @@ void moveTo(Entity& entity, Entity& goal) {
     }
   }
 
+  // find the least common ancestor
   Entity* lca = 0;
   while (src.back() == dst.front()) {
     lca = src.back();
@@ -122,28 +131,41 @@ void moveTo(Entity& entity, Entity& goal) {
   } 
   src.push_back(lca);
   
-  std::deque<Entity*> entities(src.begin(), src.end());
-  std::copy(dst.begin(), dst.end(), std::back_inserter(entities));
+  // glue together our two lists (entity -> lcs and lcs -> goal)
+  std::deque<Entity*> waypoints(src.begin(), src.end());
+  std::copy(dst.begin(), dst.end(), std::back_inserter(waypoints));
   std::deque<std::function<void()>> plan;
 
-  entities.pop_front();
-  entities.pop_front();
-  auto e = entities.begin();
-  while (e != entities.end()) {
-    Log::debug("transfer and park to %", (*e)->name());
+  // ???
+  waypoints.pop_front();
+  waypoints.pop_front();
+  auto w = waypoints.begin();
+
+  // Go through our waypoints and build a flightplan
+  while (w != waypoints.end()) {
+    Log::debug("transfer and park to %", (*w)->name());
     Entity* ptr1 = &entity;
-    Entity* ptr2 = *e;
+    Entity* ptr2 = *w;
+    // to reach our next waypoint, we need to wait until
+    // an approach
+    // this is super naive - really we ought to do some optimization
     plan.push_back([=](){ approach(*ptr1, *ptr2); });
+    // at the 'correct' time, we'll launch into a transfer orbit towards
+    // the next waypoint.   This phase is over once we reach the 
+    // periapsis of the transfer orbit
     plan.push_back([=](){ transfer(*ptr1, *ptr2); });
+    // once we reach the next waypoint, we enter a circular parking orbit
     plan.push_back([=](){ park    (*ptr1, *ptr2); });
-    e++;
+    w++;
   }
 
   Log::debug("committing to plan (% maneuvers)", plan.size());
   if (!plan.empty()) {
+    // once we have the flightplan, we add th
     entity.addOrReplace<FlightPlan>(plan);
     FlightPlan* plan = entity.get<FlightPlan>();
     Log::debug("initiating flight plan");
+    // execute the plan
     plan->maneuvers.front()();
     plan->maneuvers.pop_front();
   }
