@@ -35,6 +35,8 @@ void park(Entity& entity, Entity& center, float r = 1.5f) {
   });
 }
 
+// We approach from a slightly elliptical orbit so we are out of 
+// phase with the standard 'parking' orbit
 void approach(Entity& entity, Entity& next) {
   Log::debug("% approaching %-orbit ",
              entity.name(), next.name());
@@ -90,9 +92,8 @@ void transfer(Entity& entity, Entity& dest) {
 }
 
 //------------------------------------------------------------------------------
-// compose orbital maneuvers into a cohesive plan
 
-void moveTo(Entity& entity, Entity& goal) {
+std::deque<Entity*> findWaypoints(Entity& entity, Entity& goal) {
   auto current = &entity;
   // Starting at our entity
   std::deque<Entity*> src = {&entity};
@@ -134,14 +135,37 @@ void moveTo(Entity& entity, Entity& goal) {
   // glue together our two lists (entity -> lcs and lcs -> goal)
   std::deque<Entity*> waypoints(src.begin(), src.end());
   std::copy(dst.begin(), dst.end(), std::back_inserter(waypoints));
-  std::deque<std::function<void()>> plan;
+  // The first waypoint is the entity itself - can't approach yourself
+  // The second waypoint is the object currently being orbited 
+  waypoints.pop_front();
+  waypoints.pop_front();
 
-  // ???
-  waypoints.pop_front();
-  waypoints.pop_front();
-  auto w = waypoints.begin();
+  return waypoints;
+}
+
+void executePlan(Entity& entity, std::deque<std::function<void()>> plan) {
+  Log::debug("committing to plan (% maneuvers)", plan.size());
+  if (!plan.empty()) {
+    // once we have the flightplan, we add th
+    entity.addOrReplace<FlightPlan>(plan);
+    FlightPlan* plan = entity.get<FlightPlan>();
+    Log::debug("initiating flight plan");
+    // execute the plan
+    plan->maneuvers.front()();
+    plan->maneuvers.pop_front();
+  }
+}
+
+//------------------------------------------------------------------------------
+// compose orbital maneuvers into a cohesive plan
+
+void moveTo(Entity& entity, Entity& goal) {
+  std::deque<std::function<void()>> plan;
+  
+  auto waypoints = findWaypoints(entity, goal);
 
   // Go through our waypoints and build a flightplan
+  auto w = waypoints.begin();
   while (w != waypoints.end()) {
     Log::debug("transfer and park to %", (*w)->name());
     Entity* ptr1 = &entity;
@@ -159,14 +183,37 @@ void moveTo(Entity& entity, Entity& goal) {
     w++;
   }
 
-  Log::debug("committing to plan (% maneuvers)", plan.size());
-  if (!plan.empty()) {
-    // once we have the flightplan, we add th
-    entity.addOrReplace<FlightPlan>(plan);
-    FlightPlan* plan = entity.get<FlightPlan>();
-    Log::debug("initiating flight plan");
-    // execute the plan
-    plan->maneuvers.front()();
-    plan->maneuvers.pop_front();
+  executePlan(entity, plan);
+}
+
+void cycle(Entity& entity, Entity& a, Entity& b) {
+  std::deque<std::function<void()>> plan;
+  
+  // first we go to a
+  auto waypoints = findWaypoints(entity, a);
+
+  auto w = waypoints.begin();
+  while (w != waypoints.end()) {
+    Entity* ptr1 = &entity;
+    Entity* ptr2 = *w;
+    // to reach our next waypoint, we need to wait until
+    // an approach
+    // this is super naive - really we ought to do some optimization
+    plan.push_back([=](){ approach(*ptr1, *ptr2); });
+    // at the 'correct' time, we'll launch into a transfer orbit towards
+    // the next waypoint.   This phase is over once we reach the 
+    // periapsis of the transfer orbit
+    plan.push_back([=](){ transfer(*ptr1, *ptr2); });
+    // once we reach the next waypoint, we enter a circular parking orbit
+    plan.push_back([=](){ park    (*ptr1, *ptr2); });
+    w++;
   }
+
+  // After we string ourwaypoints, we want to go back
+  Entity* ptr1 = &entity;
+  Entity* ptr2 = &b;
+  Entity* ptr3 = &a;
+  plan.push_back([=](){ cycle(*ptr1, *ptr2, *ptr3);     });
+
+  executePlan(entity, plan);
 }

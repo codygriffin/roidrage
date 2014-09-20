@@ -212,7 +212,7 @@ Entity& createGasPlanet(float x, float y, float r) {
   roid.add<Radius>(r);
   roid.add<HillSphere>(100.0f * r, roid.name());
   roid.add<Pickable>(roid.name());
-  roid.add<Mass>(r*r*r*100.0f);
+  roid.add<Mass>(r*r*r);
   roid.add<Transform>();
   roid.add<GlProgram>(VertexShader  ("assets/gpu/transform.vp"), 
                       FragmentShader("assets/gpu/texture.fp"));
@@ -581,7 +581,8 @@ BetaGame::onEvent(GlfwMouseButton mouse) {
       if (!candidates.empty() && h != s) {
       //if (!candidates.empty() && h != s && s->has<Moveable>()) {
         Log::debug("moving to %", h->name());
-        moveTo(*s, *h);
+        //moveTo(*s, *h);
+        cycle(*s, *h, game_.entity("bEWRK5RhRX"));
       }
     }
     picker.reset();
